@@ -6,6 +6,12 @@ out
 dist
 *.tgz
 
+# Build outputs (compiled from TypeScript)
+public/map.js
+
+# Configuration files with sensitive data
+public/config.json
+
 # code coverage
 coverage
 *.lcov

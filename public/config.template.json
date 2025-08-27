@@ -1,0 +1,4 @@
+{
+  "thunderApiKey": "YOUR_THUNDERFOREST_API_KEY_HERE",
+  "osrmAddress": "YOUR_OSRM_SERVER_ADDRESS_HERE"
+}

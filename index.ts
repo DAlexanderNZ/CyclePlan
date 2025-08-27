@@ -2,10 +2,25 @@ console.log("Hello via Bun!");
 
 Bun.serve({
     development: true,
-    routes: {
-        "/": () => new Response(Bun.file("./public/map.html")),
-        "/about": () => new Response("About Page"),
-        "/assets/style.css": () => new Response(Bun.file("./public/assets/style.css")),
+    
+    // Handle static file serving
+    fetch(req) {
+        const url = new URL(req.url);
+        const pathname = url.pathname;
+        
+        // Route handlers
+        if (pathname === "/") {
+            return new Response(Bun.file("./public/map.html"));
+        }
+        if (pathname === "/about") {
+            return new Response("About Page");
+        }
+        
+        // Serve static files from public directory
+        const filePath = `./public${pathname}`;
+        const file = Bun.file(filePath);
+        
+        return new Response(file);
     },
     
     port: 8021,
