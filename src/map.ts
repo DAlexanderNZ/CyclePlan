@@ -17,6 +17,7 @@ let map: L.Map;
 let routeLayer: L.LayerGroup;
 let routingPoints: L.LatLng[] = [];
 let routingMarkers: L.Marker[] = [];
+let currentRouteDistance: number = 0; // Distance in meters
 
 async function loadConfig(): Promise<Config> {
     try {
@@ -82,6 +83,7 @@ function initializeMap(): void {
     
     // Initialize UI
     updatePointCount();
+    updateDistanceDisplay();
     addInfoControl();
 }
 
@@ -89,6 +91,21 @@ function updatePointCount(): void {
     const pointCountElement = document.getElementById('pointCount');
     if (pointCountElement) {
         pointCountElement.textContent = `Points: ${routingPoints.length}`;
+    }
+}
+
+function updateDistanceDisplay(): void {
+    const distanceElement = document.getElementById('routeDistance');
+    if (distanceElement) {
+        if (currentRouteDistance > 0 && currentRouteDistance < 1000) {
+            const meters = currentRouteDistance;
+            distanceElement.textContent = `Route Distance: ${meters} m`;
+        } else if (currentRouteDistance >= 1000) {
+            const km = (currentRouteDistance / 1000).toFixed(2);
+            distanceElement.textContent = `Route Distance: ${km} km`;
+        } else {
+            distanceElement.textContent = 'Route Distance: 0 km';
+        }
     }
 }
 
@@ -365,6 +382,8 @@ async function updateRoute(): Promise<void> {
     if (routingPoints.length < 2) {
         // Clear route if less than 2 points
         routeLayer.clearLayers();
+        currentRouteDistance = 0;
+        updateDistanceDisplay();
         return;
     }
     
@@ -375,14 +394,22 @@ async function updateRoute(): Promise<void> {
         if (result) {
             console.log('OSRM profile used:', result.profile);
             drawRoute(result.route.geometry);
+            
+            // Extract and store the route distance
+            currentRouteDistance = result.route.distance || 0;
+            updateDistanceDisplay();
         } else {
             console.warn('No route result returned');
             routeLayer.clearLayers();
+            currentRouteDistance = 0;
+            updateDistanceDisplay();
         }
     } catch (err) {
         console.error('Routing failed:', err);
         console.error('Error details:', (err as Error).message);
         console.error('Stack trace:', (err as Error).stack);
+        currentRouteDistance = 0;
+        updateDistanceDisplay();
     }
 }
 
@@ -435,7 +462,9 @@ function resetRoute(): void {
     routingMarkers.forEach(marker => map.removeLayer(marker));
     routingMarkers = [];
     routeLayer.clearLayers();
+    currentRouteDistance = 0;
     updatePointCount();
+    updateDistanceDisplay();
 }
 
 function setupEventHandlers(): void {

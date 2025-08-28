@@ -32,6 +32,15 @@
     color: #333;
 }
 
+#routeDistance {
+    font-weight: bold;
+    color: #28a745;
+    background: rgba(40, 167, 69, 0.1);
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid rgba(40, 167, 69, 0.3);
+}
+
 .numbered-marker {
     background: transparent;
     border: none;
