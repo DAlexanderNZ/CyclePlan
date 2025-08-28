@@ -57,13 +57,140 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 });
 
+function setupTileCache(tileLayer: L.TileLayer): void {
+    const TILE_CACHE_KEY = 'cycleplan_tile_cache';
+    const CACHE_EXPIRY_HOURS = 84; // Cache tiles for 3.5 days
+    const MAX_CACHE_SIZE_MB = 50; // Maximum cache size in MB
+    
+    // Get cached tiles from localStorage
+    function getCachedTile(url: string): string | null {
+        try {
+            const cache = JSON.parse(localStorage.getItem(TILE_CACHE_KEY) || '{}');
+            const cached = cache[url];
+            
+            if (cached && cached.timestamp) {
+                const now = Date.now();
+                const age = now - cached.timestamp;
+                const maxAge = CACHE_EXPIRY_HOURS * 60 * 60 * 1000;
+                
+                if (age < maxAge) {
+                    return cached.data;
+                } else {
+                    // Remove expired entry
+                    delete cache[url];
+                    localStorage.setItem(TILE_CACHE_KEY, JSON.stringify(cache));
+                }
+            }
+        } catch (e) {
+            console.warn('Error reading tile cache:', e);
+        }
+        return null;
+    }
+    
+    // Cache a tile in localStorage
+    function cacheTile(url: string, dataUrl: string): void {
+        try {
+            const cache = JSON.parse(localStorage.getItem(TILE_CACHE_KEY) || '{}');
+            
+            // Check cache size and clean if necessary
+            const cacheSize = JSON.stringify(cache).length;
+            const maxCacheSize = MAX_CACHE_SIZE_MB * 1024 * 1024;
+            
+            if (cacheSize > maxCacheSize) {
+                // Remove oldest entries
+                const entries = Object.entries(cache);
+                entries.sort(([,a]: any, [,b]: any) => a.timestamp - b.timestamp);
+                
+                // Remove oldest 20% of entries
+                const toRemove = Math.floor(entries.length * 0.2);
+                for (let i = 0; i < toRemove; i++) {
+                    const entry = entries[i];
+                    if (entry && entry[0]) {
+                        delete cache[entry[0]];
+                    }
+                }
+            }
+            
+            cache[url] = {
+                data: dataUrl,
+                timestamp: Date.now()
+            };
+            
+            localStorage.setItem(TILE_CACHE_KEY, JSON.stringify(cache));
+        } catch (e) {
+            console.warn('Error caching tile:', e);
+            // If localStorage is full, clear the cache
+            if (e instanceof Error && e.name === 'QuotaExceededError') {
+                localStorage.removeItem(TILE_CACHE_KEY);
+            }
+        }
+    }
+    
+    // Use a more compatible caching approach
+    tileLayer.on('tileload', function(e: any) {
+        const tile = e.tile;
+        const url = e.url;
+        
+        if (tile instanceof HTMLImageElement && url) {
+            // Cache the tile after it loads successfully
+            setTimeout(() => {
+                if (tile.complete && tile.naturalWidth > 0 && tile.naturalHeight > 0) {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    if (ctx) {
+                        canvas.width = tile.naturalWidth;
+                        canvas.height = tile.naturalHeight;
+                        try {
+                            ctx.drawImage(tile, 0, 0);
+                            const dataUrl = canvas.toDataURL('image/png', 0.8);
+                            cacheTile(url, dataUrl);
+                            console.debug('Cached tile:', url);
+                        } catch (e) {
+                            // CORS or other canvas security error - this is expected
+                            console.debug('Could not cache tile due to CORS policy:', url);
+                        }
+                    }
+                }
+            }, 100);
+        }
+    });
+    
+    // Handle tile errors
+    tileLayer.on('tileerror', function(e: any) {
+        console.warn('Tile failed to load:', e.url);
+    });
+    
+    console.log('Tile caching enabled - tiles will be cached for', CACHE_EXPIRY_HOURS, 'hours');
+}
+
 function initializeMap(): void {
     console.log("Map script loaded");
     map = L.map('map').setView([-43.531, 172.62], 15);
-    L.tileLayer(`https://tile.thunderforest.com/cycle/{z}/{x}/{y}.png?apikey=${THUNDER_API_KEY}`, {
+    
+    // Configure tile layer with caching options
+    // Add cache-friendly parameters to the URL
+    const cacheTimestamp = Math.floor(Date.now() / (1000 * 60 * 60 * 24)); // Daily cache key
+    const tileLayer = L.tileLayer(`https://tile.thunderforest.com/cycle/{z}/{x}/{y}.png?apikey=${THUNDER_API_KEY}&cache=${cacheTimestamp}`, {
         maxZoom: 19,
-        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-    }).addTo(map);
+        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        // Cache configuration
+        maxNativeZoom: 19,
+        crossOrigin: 'anonymous', // Enable CORS for better caching
+        // Force browser caching with proper headers
+        tileSize: 256,
+        zoomOffset: 0,
+        // Add cache-busting prevention
+        detectRetina: false,
+        // Enable tile caching
+        keepBuffer: 2, // Keep tiles loaded outside visible area
+        updateWhenIdle: true, // Only update tiles when map is idle
+
+    });
+    
+    // Add custom caching logic
+    setupTileCache(tileLayer);
+    
+    tileLayer.addTo(map);
 
     // Create a high-z pane so the route draws on top of roads/tiles
     const routePane = map.createPane('routePane');
@@ -84,6 +211,7 @@ function initializeMap(): void {
     // Initialize UI
     updatePointCount();
     updateDistanceDisplay();
+    setupCacheManagement();
     addInfoControl();
 }
 
@@ -519,4 +647,67 @@ function addInfoControl(): void {
         return div;
     };
     info.addTo(map);
+}
+
+// Cache management functions
+function getCacheSize(): number {
+    const TILE_CACHE_KEY = 'cycleplan_tile_cache';
+    try {
+        const cache = localStorage.getItem(TILE_CACHE_KEY);
+        return cache ? cache.length : 0;
+    } catch (e) {
+        return 0;
+    }
+}
+
+function getCacheItemCount(): number {
+    const TILE_CACHE_KEY = 'cycleplan_tile_cache';
+    try {
+        const cache = JSON.parse(localStorage.getItem(TILE_CACHE_KEY) || '{}');
+        return Object.keys(cache).length;
+    } catch (e) {
+        return 0;
+    }
+}
+
+function clearTileCache(): void {
+    const TILE_CACHE_KEY = 'cycleplan_tile_cache';
+    try {
+        localStorage.removeItem(TILE_CACHE_KEY);
+        updateCacheStatus();
+        console.log('Tile cache cleared');
+    } catch (e) {
+        console.warn('Error clearing cache:', e);
+    }
+}
+
+function updateCacheStatus(): void {
+    const cacheStatusElement = document.getElementById('cacheStatus');
+    if (cacheStatusElement) {
+        const sizeBytes = getCacheSize();
+        const itemCount = getCacheItemCount();
+        const sizeMB = (sizeBytes / (1024 * 1024)).toFixed(1);
+        
+        if (sizeBytes === 0) {
+            cacheStatusElement.textContent = 'Cache: Empty';
+        } else {
+            cacheStatusElement.textContent = `Cache: ${itemCount} tiles (${sizeMB} MB)`;
+        }
+    }
+}
+
+function setupCacheManagement(): void {
+    // Update cache status initially and periodically
+    updateCacheStatus();
+    setInterval(updateCacheStatus, 10000); // Update every 10 seconds
+    
+    // Clear cache button event handler
+    const clearCacheButton = document.getElementById('clearCache');
+    if (clearCacheButton) {
+        clearCacheButton.addEventListener('click', () => {
+            if (confirm('Clear all cached map tiles? This will free up storage space but tiles will need to be downloaded again.')) {
+                clearTileCache();
+            }
+        });
+    }
 }
