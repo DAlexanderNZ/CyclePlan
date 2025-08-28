@@ -1,6 +1,5 @@
 /// <reference types="leaflet" />
 
-// Configuration interface
 interface Config {
     thunderApiKey: string;
     osrmAddress: string;
@@ -11,7 +10,6 @@ let THUNDER_API_KEY: string;
 let OSRM_ADDRESS: string;
 let OSRM_URL: string;
 
-// Declare global L from CDN
 declare const L: typeof import('leaflet');
 
 // Global variables
@@ -20,7 +18,6 @@ let routeLayer: L.LayerGroup;
 let routingPoints: L.LatLng[] = [];
 let routingMarkers: L.Marker[] = [];
 
-// Function to load configuration
 async function loadConfig(): Promise<Config> {
     try {
         const response = await fetch('config.json');
@@ -88,7 +85,6 @@ function initializeMap(): void {
     addInfoControl();
 }
 
-// Function to update point count display
 function updatePointCount(): void {
     const pointCountElement = document.getElementById('pointCount');
     if (pointCountElement) {
@@ -96,7 +92,6 @@ function updatePointCount(): void {
     }
 }
 
-// Function to create a numbered marker
 function createNumberedMarker(latlng: L.LatLng, number: number): L.Marker {
     const marker = L.marker(latlng, {
         draggable: true,
@@ -146,7 +141,6 @@ function createNumberedMarker(latlng: L.LatLng, number: number): L.Marker {
     return marker;
 }
 
-// Function to redraw all markers with updated numbers
 function redrawMarkers(): void {
     // Clear existing markers
     routingMarkers.forEach(marker => map.removeLayer(marker));
@@ -160,7 +154,6 @@ function redrawMarkers(): void {
     });
 }
 
-// Function to snap a point to the nearest routable road
 async function snapToNearestRoad(latlng: L.LatLng): Promise<L.LatLng | null> {
     const url = `${OSRM_URL}nearest/v1/cycling/${latlng.lng},${latlng.lat}?number=1`;
     console.log('Snapping URL:', url); // Debug log
@@ -303,12 +296,10 @@ function drawRoute(geojson: any): void {
                 }
             });
         }, 50);
-        
-        // Don't auto-zoom to fit route bounds
     }
 }
 
-// Function to find the best position to insert a new waypoint
+// Find the closest road position to user click to insert a new waypoint 
 async function insertWaypointAtBestPosition(newPoint: L.LatLng): Promise<void> {
     if (routingPoints.length < 2) return;
     
@@ -342,7 +333,6 @@ async function insertWaypointAtBestPosition(newPoint: L.LatLng): Promise<void> {
     updateRoute();
 }
 
-// Function to calculate distance from a point to a line segment
 function getDistanceToLineSegment(point: L.LatLng, lineStart: L.LatLng, lineEnd: L.LatLng): number {
     const A = point.lat - lineStart.lat;
     const B = point.lng - lineStart.lng;
@@ -396,7 +386,6 @@ async function updateRoute(): Promise<void> {
     }
 }
 
-// Function to add a new routing point
 async function addRoutingPoint(latlng: L.LatLng): Promise<void> {
     console.log('Adding point at:', latlng); // Debug log
     
@@ -430,7 +419,7 @@ async function addRoutingPoint(latlng: L.LatLng): Promise<void> {
     updateRoute();
 }
 
-// Function to remove a routing point by index
+// Remove a routing point by index
 function removeRoutingPoint(index: number): void {
     if (index >= 0 && index < routingPoints.length) {
         routingPoints.splice(index, 1);
@@ -440,7 +429,7 @@ function removeRoutingPoint(index: number): void {
     }
 }
 
-// Function to reset all routing points
+// Reset all routing points
 function resetRoute(): void {
     routingPoints = [];
     routingMarkers.forEach(marker => map.removeLayer(marker));
@@ -449,7 +438,6 @@ function resetRoute(): void {
     updatePointCount();
 }
 
-// Function to set up event handlers
 function setupEventHandlers(): void {
     // Left click to add routing point
     map.on('click', function(e) {
@@ -483,7 +471,7 @@ function setupEventHandlers(): void {
     }
 }
 
-// Function to add info control to the map
+// Add info control to the map
 function addInfoControl(): void {
     const info = new L.Control({position: 'topright'});
     info.onAdd = function () {
