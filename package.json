@@ -6,7 +6,8 @@
   "scripts": {
     "setup": "bun run setup.ts",
     "build": "bun build src/map.ts --outdir public --target browser",
-    "dev": "bun --watch run build"
+    "dev": "bun --watch run build",
+    "server": "bun run build && bun run index.ts"
   },
   "devDependencies": {
     "@types/bun": "latest"
