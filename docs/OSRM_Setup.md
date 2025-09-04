@@ -20,4 +20,11 @@ To modify the routing profile, you can edit the profile file [bicycle.lua](https
 
 ## Notes
 - When testing with Australia and New Zealand OSM PBF files osrm-extract failed in a VM with 8GB of RAM, but worked once RAM was increased to 16GB.
-- With a VM with 4 Xeon E5-2680v3 cores and 16GB of RAM on Ubuntu 24.04 the script took ~15min to process Australia and New Zealand OSM PBF files.
+- North America failed with upto 160GB of RAM. Unable to get osrm-extract to complete.
+### Performance
+Basic time taken of the script, tested on Ubuntu Server 24.04 VM with 4 Xeon E5-2680v3 cores and RAM as per the table. 
+| Countries | Time Taken | RAM Required | File Size |
+|-----------|------------|--------------|-----------|
+| Australia & New Zealand | 15min | 16GB | 1.2GB |
+| Australia-Oceania | 16min | 16GB | 1.4GB |
+| North America - Failed | 61min | 160GB | 17GB |
