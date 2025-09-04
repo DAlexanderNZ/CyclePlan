@@ -5,6 +5,15 @@ interface Config {
     osrmAddress: string;
 }
 
+interface SavedRoute {
+    id: string;
+    name: string;
+    description: string;
+    points: L.LatLng[];
+    distance: number;
+    created: string;
+}
+
 // Configuration variables (loaded dynamically)
 let THUNDER_API_KEY: string;
 let OSRM_ADDRESS: string;
@@ -18,6 +27,7 @@ let routeLayer: L.LayerGroup;
 let routingPoints: L.LatLng[] = [];
 let routingMarkers: L.Marker[] = [];
 let currentRouteDistance: number = 0; // Distance in meters
+let currentRenamingRouteId: string | null = null; // Track which route is being renamed
 
 async function loadConfig(): Promise<Config> {
     try {
@@ -626,6 +636,11 @@ function setupEventHandlers(): void {
     if (resetButton) {
         resetButton.addEventListener('click', resetRoute);
     }
+
+    // Setup save and manage routes modals
+    setupSaveRouteModal();
+    setupRenameRouteModal();
+    setupSavedRoutesModal();
 }
 
 // Add info control to the map
@@ -647,6 +662,555 @@ function addInfoControl(): void {
         return div;
     };
     info.addTo(map);
+}
+
+// Saved Routes Management
+const SAVED_ROUTES_KEY = 'cycleplan_saved_routes';
+
+function getSavedRoutes(): SavedRoute[] {
+    try {
+        const saved = localStorage.getItem(SAVED_ROUTES_KEY);
+        return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+        console.warn('Error loading saved routes:', e);
+        return [];
+    }
+}
+
+function saveSavedRoutes(routes: SavedRoute[]): void {
+    try {
+        localStorage.setItem(SAVED_ROUTES_KEY, JSON.stringify(routes));
+    } catch (e) {
+        console.warn('Error saving routes:', e);
+        alert('Error saving routes: ' + (e as Error).message);
+    }
+}
+
+function generateRouteId(): string {
+    return 'route_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+}
+
+function saveCurrentRoute(name: string, description: string): void {
+    // TODO: Check if route is the same as existing route. Store hash of points for comparison?
+    if (routingPoints.length === 0) {
+        alert('No route to save. Please add some routing points first.');
+        return;
+    }
+
+    const routes = getSavedRoutes();
+    
+    // Check if name already exists
+    if (routes.some(route => route.name === name)) {
+        if (!confirm(`A route named "${name}" already exists. Do you want to overwrite it?`)) {
+            return;
+        }
+        // Remove existing route with same name
+        const updatedRoutes = routes.filter(route => route.name !== name);
+        saveSavedRoutes(updatedRoutes);
+    }
+
+    const newRoute: SavedRoute = {
+        id: generateRouteId(),
+        name: name,
+        description: description,
+        points: routingPoints.map(point => L.latLng(point.lat, point.lng)),
+        distance: currentRouteDistance,
+        created: new Date().toISOString()
+    };
+
+    const updatedRoutes = getSavedRoutes();
+    updatedRoutes.push(newRoute);
+    saveSavedRoutes(updatedRoutes);
+    
+    console.log('Route saved:', newRoute);
+}
+
+function loadSavedRoute(routeId: string): void {
+    const routes = getSavedRoutes();
+    const route = routes.find(r => r.id === routeId);
+    
+    if (!route) {
+        alert('Route not found!');
+        return;
+    }
+
+    // Clear current route
+    resetRoute();
+    
+    // Load the saved route
+    routingPoints = route.points.map(point => L.latLng(point.lat, point.lng));
+    currentRouteDistance = route.distance;
+    
+    redrawMarkers();
+    updatePointCount();
+    updateDistanceDisplay();
+    updateRoute();
+    
+    console.log('Route loaded:', route);
+    
+    // Zoom and center the map to show the whole route
+    fitMapToRoute();
+}
+
+function fitMapToRoute(): void {
+    if (routingPoints.length === 0) {
+        return;
+    }
+    
+    if (routingPoints.length === 1) {
+        // If only one point, center on it with a reasonable zoom
+        const point = routingPoints[0];
+        if (point) {
+            map.setView(point, 15);
+        }
+        return;
+    }
+    
+    // Create a bounds object from all routing points
+    const bounds = L.latLngBounds(routingPoints);
+    
+    // Fit the map to the bounds with some padding
+    map.fitBounds(bounds, {
+        padding: [20, 20], // 20px padding on all sides
+        maxZoom: 16 // Don't zoom in too much for short routes
+    });
+}
+
+function deleteSavedRoute(routeId: string): void {
+    const routes = getSavedRoutes();
+    const route = routes.find(r => r.id === routeId);
+    
+    if (!route) {
+        alert('Route not found!');
+        return;
+    }
+
+    if (confirm(`Are you sure you want to delete the route "${route.name}"?`)) {
+        const updatedRoutes = routes.filter(r => r.id !== routeId);
+        saveSavedRoutes(updatedRoutes);
+        refreshSavedRoutesTable();
+    }
+}
+
+function renameSavedRoute(routeId: string, newName: string): void {
+    const routes = getSavedRoutes();
+    const route = routes.find(r => r.id === routeId);
+    
+    if (!route) {
+        alert('Route not found!');
+        return;
+    }
+
+    // Check if new name already exists
+    if (routes.some(r => r.name === newName && r.id !== routeId)) {
+        alert(`A route named "${newName}" already exists. Please choose a different name.`);
+        return;
+    }
+
+    route.name = newName;
+    saveSavedRoutes(routes);
+    refreshSavedRoutesTable();
+}
+
+function exportSavedRoutes(routeIds: string[]): void {
+    // TODO: Support exporting to different formats (e.g., GPX, KML, FIT)
+    const routes = getSavedRoutes();
+    const routesToExport = routes.filter(route => routeIds.includes(route.id));
+    
+    if (routesToExport.length === 0) {
+        alert('No routes selected for export.');
+        return;
+    }
+
+    const dataStr = JSON.stringify(routesToExport, null, 2);
+    const dataBlob = new Blob([dataStr], {type: 'application/json'});
+    
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(dataBlob);
+    link.download = `cycleplan_routes_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+function importSavedRoutes(file: File): void {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const importedRoutes: SavedRoute[] = JSON.parse(e.target?.result as string);
+            
+            if (!Array.isArray(importedRoutes)) {
+                throw new Error('Invalid file format: expected an array of routes');
+            }
+
+            const currentRoutes = getSavedRoutes();
+            let importedCount = 0;
+            let skippedCount = 0;
+
+            for (const route of importedRoutes) {
+                // Validate route structure
+                if (!route.name || !route.points || !Array.isArray(route.points)) {
+                    console.warn('Skipping invalid route:', route);
+                    skippedCount++;
+                    continue;
+                }
+
+                // Check if route name already exists
+                if (currentRoutes.some(r => r.name === route.name)) {
+                    if (!confirm(`Route "${route.name}" already exists. Do you want to overwrite it?`)) {
+                        skippedCount++;
+                        continue;
+                    }
+                    // Remove existing route
+                    const index = currentRoutes.findIndex(r => r.name === route.name);
+                    if (index >= 0) {
+                        currentRoutes.splice(index, 1);
+                    }
+                }
+
+                // Add imported route with new ID
+                const newRoute: SavedRoute = {
+                    ...route,
+                    id: generateRouteId(),
+                    points: route.points.map(point => L.latLng(point.lat, point.lng))
+                };
+                currentRoutes.push(newRoute);
+                importedCount++;
+            }
+
+            saveSavedRoutes(currentRoutes);
+            refreshSavedRoutesTable();
+            
+            alert(`Import completed!\nImported: ${importedCount} routes\nSkipped: ${skippedCount} routes`);
+        } catch (error) {
+            alert('Error importing routes: ' + (error as Error).message);
+        }
+    };
+    reader.readAsText(file);
+}
+
+function refreshSavedRoutesTable(): void {
+    const tableBody = document.getElementById('savedRoutesTableBody');
+    if (!tableBody) return;
+
+    const routes = getSavedRoutes();
+    tableBody.innerHTML = '';
+
+    routes.forEach(route => {
+        const row = document.createElement('tr');
+        row.dataset.routeId = route.id;
+        
+        const formattedDate = new Date(route.created).toLocaleDateString();
+        const pointCount = route.points.length;
+        const distanceDisplay = route.distance > 1000 
+            ? `${(route.distance / 1000).toFixed(2)} km`
+            : `${route.distance} m`;
+
+        row.innerHTML = `
+            <td><input type="checkbox" class="route-checkbox" data-route-id="${route.id}"></td>
+            <td class="route-name" data-route-id="${route.id}">${route.name}</td>
+            <td>${route.description || ''}</td>
+            <td>${pointCount}</td>
+            <td>${distanceDisplay}</td>
+            <td>${formattedDate}</td>
+            <td class="route-actions">
+                <button class="load-btn" data-route-id="${route.id}">Load</button>
+                <button class="edit-btn" data-route-id="${route.id}">Rename</button>
+                <button class="delete-btn" data-route-id="${route.id}">Delete</button>
+            </td>
+        `;
+        
+        tableBody.appendChild(row);
+    });
+
+    // Add event listeners for table actions
+    setupSavedRoutesTableEventListeners();
+}
+
+function setupSavedRoutesTableEventListeners(): void {
+    // Load route buttons
+    document.querySelectorAll('.load-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const routeId = (e.target as HTMLElement).dataset.routeId;
+            if (routeId) {
+                loadSavedRoute(routeId);
+                closeSavedRoutesModal();
+            }
+        });
+    });
+
+    // Delete route buttons
+    document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const routeId = (e.target as HTMLElement).dataset.routeId;
+            if (routeId) {
+                deleteSavedRoute(routeId);
+            }
+        });
+    });
+
+    // Rename route buttons
+    document.querySelectorAll('.edit-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const routeId = (e.target as HTMLElement).dataset.routeId;
+            if (routeId) {
+                openRenameRouteModal(routeId);
+            }
+        });
+    });
+
+    // Route checkboxes
+    document.querySelectorAll('.route-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', updateSelectedRoutesUI);
+    });
+
+    // Select all checkbox
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox') as HTMLInputElement;
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', (e) => {
+            const isChecked = (e.target as HTMLInputElement).checked;
+            document.querySelectorAll('.route-checkbox').forEach(cb => {
+                (cb as HTMLInputElement).checked = isChecked;
+            });
+            updateSelectedRoutesUI();
+        });
+    }
+}
+
+function updateSelectedRoutesUI(): void {
+    const checkboxes = document.querySelectorAll('.route-checkbox') as NodeListOf<HTMLInputElement>;
+    const selectedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+    
+    // Update select all checkbox state
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox') as HTMLInputElement;
+    if (selectAllCheckbox) {
+        selectAllCheckbox.indeterminate = selectedCount > 0 && selectedCount < checkboxes.length;
+        selectAllCheckbox.checked = selectedCount === checkboxes.length;
+    }
+
+    // Update delete button state
+    const deleteBtn = document.getElementById('deleteSelectedRoutes') as HTMLButtonElement;
+    const exportBtn = document.getElementById('exportSelectedRoutes') as HTMLButtonElement;
+    if (deleteBtn) deleteBtn.disabled = selectedCount === 0;
+    if (exportBtn) exportBtn.disabled = selectedCount === 0;
+}
+
+function getSelectedRouteIds(): string[] {
+    const checkboxes = document.querySelectorAll('.route-checkbox:checked') as NodeListOf<HTMLInputElement>;
+    return Array.from(checkboxes).map(cb => cb.dataset.routeId!);
+}
+
+function setupSaveRouteModal(): void {
+    const modal = document.getElementById('saveRouteModal');
+    const saveBtn = document.getElementById('saveRoute');
+    const closeBtn = modal?.querySelector('.close');
+    const cancelBtn = modal?.querySelector('.cancel');
+    const form = document.getElementById('saveRouteForm');
+
+    if (saveBtn) {
+        saveBtn.addEventListener('click', () => {
+            if (routingPoints.length === 0) {
+                alert('No route to save. Please add some routing points first.');
+                return;
+            }
+            modal!.style.display = 'block';
+        });
+    }
+
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            modal!.style.display = 'none';
+        });
+    }
+
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', () => {
+            modal!.style.display = 'none';
+        });
+    }
+
+    if (form) {
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const formData = new FormData(form as HTMLFormElement);
+            const name = formData.get('routeName') as string;
+            const description = formData.get('routeDescription') as string;
+            
+            if (name.trim()) {
+                saveCurrentRoute(name.trim(), description.trim());
+                modal!.style.display = 'none';
+                (form as HTMLFormElement).reset();
+            }
+        });
+    }
+
+    // Close modal when clicking outside
+    window.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal!.style.display = 'none';
+        }
+    });
+}
+
+function setupRenameRouteModal(): void {
+    const modal = document.getElementById('renameRouteModal');
+    const closeBtn = modal?.querySelector('.close');
+    const cancelBtn = modal?.querySelector('.cancel');
+    const form = document.getElementById('renameRouteForm');
+
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            modal!.style.display = 'none';
+            currentRenamingRouteId = null;
+        });
+    }
+
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', () => {
+            modal!.style.display = 'none';
+            currentRenamingRouteId = null;
+        });
+    }
+
+    if (form) {
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const formData = new FormData(form as HTMLFormElement);
+            const newName = formData.get('newRouteName') as string;
+            
+            if (newName.trim() && currentRenamingRouteId) {
+                renameSavedRoute(currentRenamingRouteId, newName.trim());
+                modal!.style.display = 'none';
+                currentRenamingRouteId = null;
+                (form as HTMLFormElement).reset();
+            }
+        });
+    }
+
+    // Close modal when clicking outside
+    window.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal!.style.display = 'none';
+            currentRenamingRouteId = null;
+        }
+    });
+}
+
+function openRenameRouteModal(routeId: string): void {
+    const routes = getSavedRoutes();
+    const route = routes.find(r => r.id === routeId);
+    
+    if (!route) {
+        alert('Route not found!');
+        return;
+    }
+
+    currentRenamingRouteId = routeId;
+    const modal = document.getElementById('renameRouteModal');
+    const nameInput = document.getElementById('newRouteName') as HTMLInputElement;
+    
+    if (modal && nameInput) {
+        nameInput.value = route.name;
+        modal.style.display = 'block';
+        nameInput.focus();
+        nameInput.select();
+    }
+}
+
+function setupSavedRoutesModal(): void {
+    const modal = document.getElementById('manageSavedRoutesModal');
+    const manageBtn = document.getElementById('manageSavedRoutes');
+    const closeBtn = modal?.querySelector('.close');
+
+    if (manageBtn) {
+        manageBtn.addEventListener('click', () => {
+            modal!.style.display = 'block';
+            refreshSavedRoutesTable();
+        });
+    }
+
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            modal!.style.display = 'none';
+        });
+    }
+
+    // Toolbar buttons
+    const selectAllBtn = document.getElementById('selectAllRoutes');
+    const deselectAllBtn = document.getElementById('deselectAllRoutes');
+    const deleteSelectedBtn = document.getElementById('deleteSelectedRoutes');
+    const exportSelectedBtn = document.getElementById('exportSelectedRoutes');
+    const importBtn = document.getElementById('importRoutesBtn');
+    const importInput = document.getElementById('importRoutes') as HTMLInputElement;
+
+    if (selectAllBtn) {
+        selectAllBtn.addEventListener('click', () => {
+            document.querySelectorAll('.route-checkbox').forEach(cb => {
+                (cb as HTMLInputElement).checked = true;
+            });
+            updateSelectedRoutesUI();
+        });
+    }
+
+    if (deselectAllBtn) {
+        deselectAllBtn.addEventListener('click', () => {
+            document.querySelectorAll('.route-checkbox').forEach(cb => {
+                (cb as HTMLInputElement).checked = false;
+            });
+            updateSelectedRoutesUI();
+        });
+    }
+
+    if (deleteSelectedBtn) {
+        deleteSelectedBtn.addEventListener('click', () => {
+            const selectedIds = getSelectedRouteIds();
+            if (selectedIds.length === 0) return;
+
+            if (confirm(`Are you sure you want to delete ${selectedIds.length} selected route(s)?`)) {
+                const routes = getSavedRoutes();
+                const updatedRoutes = routes.filter(route => !selectedIds.includes(route.id));
+                saveSavedRoutes(updatedRoutes);
+                refreshSavedRoutesTable();
+            }
+        });
+    }
+
+    if (exportSelectedBtn) {
+        exportSelectedBtn.addEventListener('click', () => {
+            const selectedIds = getSelectedRouteIds();
+            if (selectedIds.length > 0) {
+                exportSavedRoutes(selectedIds);
+            }
+        });
+    }
+
+    if (importBtn && importInput) {
+        importBtn.addEventListener('click', () => {
+            importInput.click();
+        });
+
+        importInput.addEventListener('change', (e) => {
+            const file = (e.target as HTMLInputElement).files?.[0];
+            if (file) {
+                importSavedRoutes(file);
+                (e.target as HTMLInputElement).value = ''; // Reset input
+            }
+        });
+    }
+
+    // Close modal when clicking outside
+    window.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal!.style.display = 'none';
+        }
+    });
+}
+
+function closeSavedRoutesModal(): void {
+    const modal = document.getElementById('manageSavedRoutesModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
 }
 
 // Cache management functions

@@ -16,9 +16,76 @@
     <h1>Map</h1>
     <div id="controls">
         <button id="resetRoute">Reset Route</button>
+        <button id="saveRoute">Save Route</button>
+        <button id="manageSavedRoutes">Manage Saved Routes</button>
         <span id="pointCount">Points: 0</span>
         <span id="routeDistance">Route Distance: 0 km</span>
     </div>
     <div id="map"></div>
+    
+    <div id="saveRouteModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Save Route</h2>
+            <form id="saveRouteForm">
+                <label for="routeName">Route Name:</label>
+                <input type="text" id="routeName" name="routeName" required>
+                <label for="routeDescription">Description (optional):</label>
+                <textarea id="routeDescription" name="routeDescription" rows="3"></textarea>
+                <div class="modal-buttons">
+                    <button type="submit">Save</button>
+                    <button type="button" class="cancel">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div id="renameRouteModal" class="modal rename-modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Rename Route</h2>
+            <form id="renameRouteForm">
+                <label for="newRouteName">New Route Name:</label>
+                <input type="text" id="newRouteName" name="newRouteName" required>
+                <div class="modal-buttons">
+                    <button type="submit">Rename</button>
+                    <button type="button" class="cancel">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div id="manageSavedRoutesModal" class="modal">
+        <div class="modal-content large">
+            <span class="close">&times;</span>
+            <h2>Manage Saved Routes</h2>
+            <div class="route-management-toolbar">
+                <button id="selectAllRoutes">Select All</button>
+                <button id="deselectAllRoutes">Deselect All</button>
+                <button id="deleteSelectedRoutes" class="danger">Delete Selected</button>
+                <button id="exportSelectedRoutes">Export Selected</button>
+                <input type="file" id="importRoutes" accept=".json" style="display: none;">
+                <button id="importRoutesBtn">Import Routes</button>
+            </div>
+            <div id="savedRoutesContainer">
+                <table id="savedRoutesTable">
+                    <thead>
+                        <tr>
+                            <th><input type="checkbox" id="selectAllCheckbox"></th>
+                            <th>Name</th>
+                            <th>Description</th>
+                            <th>Points</th>
+                            <th>Distance</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="savedRoutesTableBody">
+                        <!-- Routes will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
