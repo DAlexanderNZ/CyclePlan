@@ -183,7 +183,7 @@ function initializeMap(): void {
         detectRetina: false,
         // Enable tile caching
         keepBuffer: 2, // Keep tiles loaded outside visible area
-        updateWhenIdle: true, // Only update tiles when map is idle
+        updateWhenIdle: false,
 
     });
     
