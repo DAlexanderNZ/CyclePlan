@@ -14,6 +14,10 @@ else
     OSM_PBF_FILE="${OSM_PBF_FILES[0]}"
 fi
 
+# Strip leading path and file extension
+OSM_PBF_FILE="${OSM_PBF_FILE#./}"
+OSM_BASE="${OSM_PBF_FILE%.osm.pbf}"
+
 # Extract and partition the OSM PBF file
 # If you want to customize the routing profile, you can modify the profile file at /opt/bicycle.lua
 echo "Using OSM PBF file: ${OSM_PBF_FILE}"
@@ -27,4 +31,4 @@ docker run -t -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-customize
 
 echo -e "\nOSRM setup complete.\n"
 echo "You can now start the OSRM server using the following command:"
-echo -e "docker run -t -v \"${PWD}:/data\" ghcr.io/project-osrm/osrm-backend osrm-routed --algorithm mld /data/${OSM_PBF_FILE} "
+echo -e "docker run -t -v \"${PWD}:/data\" ghcr.io/project-osrm/osrm-backend osrm-routed --algorithm mld /data/${OSM_BASE}.osrm "
