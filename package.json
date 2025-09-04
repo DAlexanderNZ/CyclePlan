@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "setup": "bun run setup.ts",
-    "build": "bun build src/map.ts --outdir public --target browser",
+    "build": "bun build src/map.ts --outfile public/map.js --target browser --format iife",
     "dev": "bun --watch run build",
     "server": "bun run build && bun run index.ts"
   },
