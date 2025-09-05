@@ -1,8 +1,7 @@
 /// <reference types="leaflet" />
 
+import L from 'leaflet';
 import type { AppState } from './types';
-
-declare const L: typeof import('leaflet');
 
 export async function snapToNearestRoad(latlng: L.LatLng, osrmUrl: string): Promise<L.LatLng | null> {
     const url = `${osrmUrl}nearest/v1/cycling/${latlng.lng},${latlng.lat}?number=1`;

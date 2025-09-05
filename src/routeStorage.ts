@@ -1,8 +1,7 @@
 /// <reference types="leaflet" />
 
+import L from 'leaflet';
 import type { SavedRoute } from './types';
-
-declare const L: typeof import('leaflet');
 
 const SAVED_ROUTES_KEY = 'cycleplan_saved_routes';
 

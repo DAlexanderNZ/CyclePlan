@@ -1,9 +1,8 @@
 /// <reference types="leaflet" />
 
+import L from 'leaflet';
 import type { AppState } from './types';
 import { getSavedRoutes, deleteSavedRoute, renameSavedRoute, exportSavedRoutes, importSavedRoutes, saveCurrentRoute } from './routeStorage';
-
-declare const L: typeof import('leaflet');
 
 export function createNumberedMarker(latlng: L.LatLng, number: number, map: L.Map, state: AppState, updateRoute: () => Promise<void>, osrmUrl: string): L.Marker {
     const marker = L.marker(latlng, {

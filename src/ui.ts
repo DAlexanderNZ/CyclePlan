@@ -1,10 +1,9 @@
 /// <reference types="leaflet" />
 
+import L from 'leaflet';
 import type { AppState } from './types';
 import { getSavedRoutes, renameSavedRoute, exportSavedRoutes, importSavedRoutes, saveCurrentRoute, saveSavedRoutes } from './routeStorage';
 import { refreshSavedRoutesTable, getSelectedRouteIds } from './waypoints';
-
-declare const L: typeof import('leaflet');
 
 export function addInfoControl(map: L.Map): void {
     const info = new L.Control({position: 'topright'});

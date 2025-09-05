@@ -1,6 +1,6 @@
 /// <reference types="leaflet" />
 
-declare const L: typeof import('leaflet');
+import L from 'leaflet';
 
 export function setupTileCache(tileLayer: L.TileLayer): void {
     const TILE_CACHE_KEY = 'cycleplan_tile_cache';

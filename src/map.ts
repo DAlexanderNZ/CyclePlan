@@ -1,5 +1,7 @@
 /// <reference types="leaflet" />
 
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import type { AppState } from './types';
 import { loadConfig } from './config';
 import { setupTileCache } from './tileCache';
@@ -21,8 +23,6 @@ import {
     openRenameRouteModal,
     closeSavedRoutesModal
 } from './ui';
-
-declare const L: typeof import('leaflet');
 
 // Application state
 const appState: AppState = {

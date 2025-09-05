@@ -8,6 +8,7 @@ dist
 
 # Build outputs (compiled from TypeScript)
 public/map.js
+public/map.css
 
 # Configuration files with sensitive data
 public/config.json
