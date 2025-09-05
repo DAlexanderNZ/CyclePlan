@@ -3,6 +3,12 @@
 export interface Config {
     thunderApiKey: string;
     osrmAddress: string;
+    osrmUrl?: string;
+    mapTileUrl?: string;
+    mapTileApiKey?: string;
+    enableOpenTopoData?: boolean;
+    openTopoDataUrl?: string;
+    openTopoDataDataSet?: string;
 }
 
 export interface SavedRoute {

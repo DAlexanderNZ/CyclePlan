@@ -343,3 +343,95 @@ export function closeSavedRoutesModal(): void {
         modal.style.display = 'none';
     }
 }
+
+export function setupSettingsModal(state: AppState): void {
+    const modal = document.getElementById('settingsModal');
+    const settingsBtn = document.getElementById('settings');
+    const closeBtn = modal?.querySelector('.close');
+    const cancelBtn = modal?.querySelector('.cancel');
+    const form = document.getElementById('settingsForm');
+
+    if (settingsBtn) {
+        settingsBtn.addEventListener('click', () => {
+            if (state.config) {
+                // Populate form with current config values
+                const osrmUrlInput = document.getElementById('osrmUrl') as HTMLInputElement;
+                const mapTileUrlInput = document.getElementById('mapTileUrl') as HTMLInputElement;
+                const mapTileApiKeyInput = document.getElementById('mapTileApiKey') as HTMLInputElement;
+                const enableOpenTopoDataInput = document.getElementById('enableOpenTopoData') as HTMLInputElement;
+                const openTopoDataUrlInput = document.getElementById('OpenTopoDataUrl') as HTMLInputElement;
+                const openTopoDataDataSetSelect = document.getElementById('OpenTopoDataDataSet') as HTMLSelectElement;
+
+                if (osrmUrlInput) osrmUrlInput.value = state.config.osrmUrl || `http://${state.config.osrmAddress}/`;
+                if (mapTileUrlInput) mapTileUrlInput.value = state.config.mapTileUrl || 'https://tile.thunderforest.com/cycle/';
+                if (mapTileApiKeyInput) mapTileApiKeyInput.value = state.config.mapTileApiKey || state.config.thunderApiKey;
+                if (enableOpenTopoDataInput) enableOpenTopoDataInput.checked = state.config.enableOpenTopoData || false;
+                if (openTopoDataUrlInput) openTopoDataUrlInput.value = state.config.openTopoDataUrl || 'http://localhost:5010';
+                if (openTopoDataDataSetSelect) openTopoDataDataSetSelect.value = state.config.openTopoDataDataSet || 'srtm';
+            }
+            
+            modal!.style.display = 'block';
+        });
+    }
+
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            modal!.style.display = 'none';
+        });
+    }
+
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', () => {
+            modal!.style.display = 'none';
+        });
+    }
+
+    if (form) {
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const formData = new FormData(form as HTMLFormElement);
+            
+            // Update config with new values
+            if (state.config) {
+                const newConfig = {
+                    ...state.config,
+                    osrmUrl: formData.get('osrmUrl') as string,
+                    mapTileUrl: formData.get('mapTileUrl') as string,
+                    mapTileApiKey: formData.get('mapTileApiKey') as string,
+                    enableOpenTopoData: formData.has('enableOpenTopoData'),
+                    openTopoDataUrl: formData.get('OpenTopoDataUrl') as string,
+                    openTopoDataDataSet: formData.get('OpenTopoDataDataSet') as string
+                };
+
+                // Validate required fields
+                if (!newConfig.osrmUrl.trim()) {
+                    alert('OSRM Server URL is required.');
+                    return;
+                }
+                if (!newConfig.mapTileUrl.trim()) {
+                    alert('Map Tile URL is required.');
+                    return;
+                }
+                if (!newConfig.mapTileApiKey.trim()) {
+                    alert('Map Tile API Key is required.');
+                    return;
+                }
+                if (newConfig.enableOpenTopoData && !newConfig.openTopoDataUrl.trim()) {
+                    alert('OpenTopoData Server URL is required when elevation is enabled.');
+                    return;
+                }
+
+                // Update the state config
+                state.config = newConfig;
+                modal!.style.display = 'none';
+            }
+        });
+    }
+
+    // Close modal when clicking outside
+    window.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal!.style.display = 'none';
+        }
+    });
+}

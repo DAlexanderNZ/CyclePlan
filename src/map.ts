@@ -20,6 +20,7 @@ import {
     setupSaveRouteModal, 
     setupRenameRouteModal, 
     setupSavedRoutesModal,
+    setupSettingsModal,
     openRenameRouteModal,
     closeSavedRoutesModal
 } from './ui';
@@ -44,7 +45,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     try {
         const config = await loadConfig();
         appState.config = config;
-        osrmUrl = `http://${config.osrmAddress}/`;
+        osrmUrl = config.osrmUrl || `http://${config.osrmAddress}/`;
         
         initializeMap();
     } catch (error) {
@@ -61,9 +62,11 @@ function initializeMap(): void {
     // Configure tile layer with caching options
     // Add cache-friendly parameters to the URL
     const cacheTimestamp = Math.floor(Date.now() / (1000 * 60 * 60 * 24)); // Daily cache key
-    const tileLayer = L.tileLayer(`https://tile.thunderforest.com/cycle/{z}/{x}/{y}.png?apikey=${appState.config.thunderApiKey}&cache=${cacheTimestamp}`, {
+    const tileUrl = appState.config.mapTileUrl || 'https://tile.thunderforest.com/cycle/';
+    const apiKey = appState.config.mapTileApiKey || appState.config.thunderApiKey;
+    const tileLayer = L.tileLayer(`${tileUrl}{z}/{x}/{y}.png?apikey=${apiKey}&cache=${cacheTimestamp}`, {
         maxZoom: 19,
-        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        attribution: 'Maps &copy; <a href="https://www.thunderforest.com">Thunderforest</a> Data &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
         // Cache configuration
         maxNativeZoom: 19,
         crossOrigin: 'anonymous', // Enable CORS for better caching
@@ -184,6 +187,7 @@ function setupEventHandlers(): void {
     setupSaveRouteModal(appState);
     setupRenameRouteModal(appState);
     setupSavedRoutesModal();
+    setupSettingsModal(appState);
     
     // Custom event handlers for route management
     document.addEventListener('loadRoute', (e: any) => {
