@@ -98,6 +98,31 @@ export function renameSavedRoute(routeId: string, newName: string, refreshCallba
     refreshCallback();
 }
 
+export function updateExistingRoute(routeId: string, routingPoints: L.LatLng[], currentRouteDistance: number, name: string, description: string): void {
+    const routes = getSavedRoutes();
+    const route = routes.find(r => r.id === routeId);
+    
+    if (!route) {
+        alert('Route not found!');
+        return;
+    }
+
+    // Check if new name conflicts with other routes
+    if (routes.some(r => r.name === name && r.id !== routeId)) {
+        alert(`A route named "${name}" already exists. Please choose a different name.`);
+        return;
+    }
+
+    // Update the existing route
+    route.name = name;
+    route.description = description;
+    route.points = routingPoints.map(point => L.latLng(point.lat, point.lng));
+    route.distance = currentRouteDistance;
+    
+    saveSavedRoutes(routes);
+    console.log('Route updated:', route);
+}
+
 export function exportSavedRoutes(routeIds: string[]): void {
     const routes = getSavedRoutes();
     const routesToExport = routes.filter(route => routeIds.includes(route.id));

@@ -32,6 +32,8 @@ const appState: AppState = {
     routingMarkers: [],
     currentRouteDistance: 0,
     currentRenamingRouteId: null,
+    currentLoadedRouteId: null,
+    isRouteModified: false,
     config: null
 };
 

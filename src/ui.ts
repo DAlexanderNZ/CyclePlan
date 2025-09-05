@@ -2,7 +2,7 @@
 
 import L from 'leaflet';
 import type { AppState } from './types';
-import { getSavedRoutes, renameSavedRoute, exportSavedRoutes, importSavedRoutes, saveCurrentRoute, saveSavedRoutes } from './routeStorage';
+import { getSavedRoutes, renameSavedRoute, exportSavedRoutes, importSavedRoutes, saveCurrentRoute, updateExistingRoute, saveSavedRoutes } from './routeStorage';
 import { refreshSavedRoutesTable, getSelectedRouteIds } from './waypoints';
 
 export function addInfoControl(map: L.Map): void {
@@ -31,6 +31,12 @@ export function setupSaveRouteModal(state: AppState): void {
     const closeBtn = modal?.querySelector('.close');
     const cancelBtn = modal?.querySelector('.cancel');
     const form = document.getElementById('saveRouteForm');
+    const modalTitle = document.getElementById('saveRouteModalTitle');
+    const loadedRouteInfo = document.getElementById('loadedRouteInfo');
+    const loadedRouteName = document.getElementById('loadedRouteName');
+    const modificationNotice = document.getElementById('modificationNotice');
+    const saveOptions = document.getElementById('saveOptions');
+    const saveSubmitBtn = document.getElementById('saveSubmitBtn');
 
     if (saveBtn) {
         saveBtn.addEventListener('click', () => {
@@ -38,7 +44,79 @@ export function setupSaveRouteModal(state: AppState): void {
                 alert('No route to save. Please add some routing points first.');
                 return;
             }
+
+            // Check if we have a loaded route
+            const hasLoadedRoute = state.currentLoadedRouteId !== null;
+            
+            if (hasLoadedRoute) {
+                const routes = getSavedRoutes();
+                const loadedRoute = routes.find(r => r.id === state.currentLoadedRouteId);
+                
+                if (loadedRoute) {
+                    // Show the loaded route info and options
+                    modalTitle!.textContent = 'Save Route';
+                    loadedRouteInfo!.style.display = 'block';
+                    loadedRouteName!.textContent = loadedRoute.name;
+                    
+                    // Show modification notice if route has been modified
+                    if (modificationNotice) {
+                        modificationNotice.style.display = state.isRouteModified ? 'block' : 'none';
+                    }
+                    
+                    saveOptions!.style.display = 'block';
+                    
+                    // Pre-fill form with loaded route data
+                    (document.getElementById('routeName') as HTMLInputElement).value = loadedRoute.name;
+                    (document.getElementById('routeDescription') as HTMLTextAreaElement).value = loadedRoute.description;
+                    
+                    // Set default to update existing route
+                    (document.querySelector('input[name="saveAction"][value="update"]') as HTMLInputElement).checked = true;
+                    updateSaveButtonText();
+                } else {
+                    // Route not found, treat as new
+                    setupForNewRoute();
+                }
+            } else {
+                // No loaded route, set up for new route
+                setupForNewRoute();
+            }
+
             modal!.style.display = 'block';
+        });
+    }
+
+    function setupForNewRoute() {
+        modalTitle!.textContent = 'Save New Route';
+        loadedRouteInfo!.style.display = 'none';
+        saveOptions!.style.display = 'none';
+        saveSubmitBtn!.textContent = 'Save';
+        
+        // Clear form
+        (document.getElementById('routeName') as HTMLInputElement).value = '';
+        (document.getElementById('routeDescription') as HTMLTextAreaElement).value = '';
+    }
+
+    function updateSaveButtonText() {
+        const selectedAction = document.querySelector('input[name="saveAction"]:checked') as HTMLInputElement;
+        if (selectedAction) {
+            if (selectedAction.value === 'update') {
+                saveSubmitBtn!.textContent = state.isRouteModified ? 'Update Route' : 'Update Route';
+            } else {
+                saveSubmitBtn!.textContent = 'Save as New';
+            }
+        }
+    }
+
+    if (saveOptions) {
+        saveOptions.addEventListener('change', (e) => {
+            if ((e.target as HTMLInputElement).name === 'saveAction') {
+                updateSaveButtonText();
+                
+                // If switching to "save as new", clear the route name to force user to enter a new one
+                if ((e.target as HTMLInputElement).value === 'new') {
+                    (document.getElementById('routeName') as HTMLInputElement).value = '';
+                }
+            }
         });
     }
 
@@ -61,11 +139,39 @@ export function setupSaveRouteModal(state: AppState): void {
             const name = formData.get('routeName') as string;
             const description = formData.get('routeDescription') as string;
             
-            if (name.trim()) {
-                saveCurrentRoute(state.routingPoints, state.currentRouteDistance, name.trim(), description.trim());
-                modal!.style.display = 'none';
-                (form as HTMLFormElement).reset();
+            if (!name.trim()) {
+                alert('Please enter a route name.');
+                return;
             }
+
+            // Determine if we should update existing or save as new
+            const hasLoadedRoute = state.currentLoadedRouteId !== null;
+            const selectedAction = hasLoadedRoute ? 
+                (document.querySelector('input[name="saveAction"]:checked') as HTMLInputElement)?.value : 
+                'new';
+
+            if (hasLoadedRoute && selectedAction === 'update') {
+                // Update existing route
+                updateExistingRoute(
+                    state.currentLoadedRouteId!, 
+                    state.routingPoints, 
+                    state.currentRouteDistance, 
+                    name.trim(), 
+                    description.trim()
+                );
+                // Reset modification flag since route is now saved
+                state.isRouteModified = false;
+            } else {
+                // Save as new route
+                saveCurrentRoute(state.routingPoints, state.currentRouteDistance, name.trim(), description.trim());
+                // Clear the loaded route ID and modification flag since we saved as new
+                state.currentLoadedRouteId = null;
+                state.isRouteModified = false;
+                alert('Route saved successfully!');
+            }
+            
+            modal!.style.display = 'none';
+            (form as HTMLFormElement).reset();
         });
     }
 

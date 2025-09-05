@@ -40,6 +40,9 @@ export function createNumberedMarker(latlng: L.LatLng, number: number, map: L.Ma
             state.routingPoints[(marker as any).pointIndex] = newLatLng;
         }
         
+        // Mark route as modified
+        state.isRouteModified = true;
+        
         // Update the route
         updateRoute();
         
@@ -118,6 +121,7 @@ export async function addRoutingPoint(latlng: L.LatLng, state: AppState, map: L.
     }
     
     state.routingPoints.push(pointToAdd);
+    state.isRouteModified = true;
     redrawMarkers(state, map, osrmUrl, updateRoute);
     updatePointCount(state);
     updateRoute();
@@ -154,6 +158,7 @@ export async function insertWaypointAtBestPosition(newPoint: L.LatLng, state: Ap
     
     // Insert the new waypoint at the best position
     state.routingPoints.splice(bestIndex, 0, pointToInsert);
+    state.isRouteModified = true;
     redrawMarkers(state, map, osrmUrl, updateRoute);
     updatePointCount(state);
     updateRoute();
@@ -163,6 +168,7 @@ export async function insertWaypointAtBestPosition(newPoint: L.LatLng, state: Ap
 export function removeRoutingPoint(index: number, state: AppState, map: L.Map, osrmUrl: string, updateRoute: () => Promise<void>): void {
     if (index >= 0 && index < state.routingPoints.length) {
         state.routingPoints.splice(index, 1);
+        state.isRouteModified = true;
         redrawMarkers(state, map, osrmUrl, updateRoute);
         updatePointCount(state);
         updateRoute();
@@ -178,6 +184,8 @@ export function resetRoute(state: AppState, map: L.Map): void {
         state.routeLayer.clearLayers();
     }
     state.currentRouteDistance = 0;
+    state.currentLoadedRouteId = null;
+    state.isRouteModified = false;
     updatePointCount(state);
     updateDistanceDisplay(state);
 }
@@ -221,6 +229,8 @@ export function loadSavedRoute(routeId: string, state: AppState, map: L.Map, osr
     // Load the saved route
     state.routingPoints = route.points.map(point => L.latLng(point.lat, point.lng));
     state.currentRouteDistance = route.distance;
+    state.currentLoadedRouteId = routeId;
+    state.isRouteModified = false;
     
     redrawMarkers(state, map, osrmUrl, updateRoute);
     updatePointCount(state);

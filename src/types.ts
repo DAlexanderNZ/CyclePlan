@@ -21,5 +21,7 @@ export interface AppState {
     routingMarkers: L.Marker[];
     currentRouteDistance: number;
     currentRenamingRouteId: string | null;
+    currentLoadedRouteId: string | null;
+    isRouteModified: boolean;
     config: Config | null;
 }
