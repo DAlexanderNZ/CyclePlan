@@ -4,6 +4,7 @@ import L from 'leaflet';
 import type { AppState } from './types';
 import { getSavedRoutes, renameSavedRoute, exportSavedRoutes, importSavedRoutes, saveCurrentRoute, updateExistingRoute, saveSavedRoutes } from './routeStorage';
 import { refreshSavedRoutesTable, getSelectedRouteIds } from './waypoints';
+import { updateRoute } from './map';
 
 export function addInfoControl(map: L.Map): void {
     const info = new L.Control({position: 'topright'});
@@ -23,6 +24,18 @@ export function addInfoControl(map: L.Map): void {
         return div;
     };
     info.addTo(map);
+}
+
+export function setupRoundTripButton(state: AppState): void {
+    const roundTripBtn = document.getElementById('roundTrip');
+    if (roundTripBtn) {
+        roundTripBtn.addEventListener('click', () => {
+            state.isRoundTrip = !state.isRoundTrip;
+            roundTripBtn.textContent = state.isRoundTrip ? 'Round Trip 🗘' : 'One Way 🗘';
+            // Update route calculation
+            updateRoute();
+        });
+    }
 }
 
 export function setupSaveRouteModal(state: AppState): void {
@@ -57,6 +70,9 @@ export function setupSaveRouteModal(state: AppState): void {
                     modalTitle!.textContent = 'Save Route';
                     loadedRouteInfo!.style.display = 'block';
                     loadedRouteName!.textContent = loadedRoute.name;
+                    // Show whether the loaded route is a round trip
+                    const roundTripFlag = (loadedRoute as any).isRoundTrip ? ' (Round Trip)' : '';
+                    loadedRouteName!.textContent = loadedRoute.name + roundTripFlag;
                     
                     // Show modification notice if route has been modified
                     if (modificationNotice) {
@@ -155,15 +171,16 @@ export function setupSaveRouteModal(state: AppState): void {
                 updateExistingRoute(
                     state.currentLoadedRouteId!, 
                     state.routingPoints, 
-                    state.currentRouteDistance, 
+                    state.currentRouteDistance,
                     name.trim(), 
-                    description.trim()
+                    description.trim(),
+                    state.isRoundTrip
                 );
                 // Reset modification flag since route is now saved
                 state.isRouteModified = false;
             } else {
                 // Save as new route
-                saveCurrentRoute(state.routingPoints, state.currentRouteDistance, name.trim(), description.trim());
+                saveCurrentRoute(state.routingPoints, state.currentRouteDistance, name.trim(), description.trim(), state.isRoundTrip);
                 // Clear the loaded route ID and modification flag since we saved as new
                 state.currentLoadedRouteId = null;
                 state.isRouteModified = false;

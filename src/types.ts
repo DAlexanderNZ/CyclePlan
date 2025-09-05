@@ -17,6 +17,7 @@ export interface SavedRoute {
     description: string;
     points: L.LatLng[];
     distance: number;
+    isRoundTrip?: boolean;
     created: string;
 }
 
@@ -28,6 +29,7 @@ export interface AppState {
     currentRouteDistance: number;
     currentRenamingRouteId: string | null;
     currentLoadedRouteId: string | null;
+    isRoundTrip: boolean;
     isRouteModified: boolean;
     config: Config | null;
 }

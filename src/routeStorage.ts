@@ -28,7 +28,7 @@ export function generateRouteId(): string {
     return 'route_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 }
 
-export function saveCurrentRoute(routingPoints: L.LatLng[], currentRouteDistance: number, name: string, description: string): void {
+export function saveCurrentRoute(routingPoints: L.LatLng[], currentRouteDistance: number, name: string, description: string, isRoundTrip: boolean = false): void {
     if (routingPoints.length === 0) {
         alert('No route to save. Please add some routing points first.');
         return;
@@ -52,6 +52,7 @@ export function saveCurrentRoute(routingPoints: L.LatLng[], currentRouteDistance
         description: description,
         points: routingPoints.map(point => L.latLng(point.lat, point.lng)),
         distance: currentRouteDistance,
+        isRoundTrip: !!isRoundTrip,
         created: new Date().toISOString()
     };
 
@@ -98,7 +99,7 @@ export function renameSavedRoute(routeId: string, newName: string, refreshCallba
     refreshCallback();
 }
 
-export function updateExistingRoute(routeId: string, routingPoints: L.LatLng[], currentRouteDistance: number, name: string, description: string): void {
+export function updateExistingRoute(routeId: string, routingPoints: L.LatLng[], currentRouteDistance: number, name: string, description: string, isRoundTrip?: boolean): void {
     const routes = getSavedRoutes();
     const route = routes.find(r => r.id === routeId);
     
@@ -118,6 +119,10 @@ export function updateExistingRoute(routeId: string, routingPoints: L.LatLng[], 
     route.description = description;
     route.points = routingPoints.map(point => L.latLng(point.lat, point.lng));
     route.distance = currentRouteDistance;
+    if (typeof isRoundTrip === 'boolean') {
+        (route as any).isRoundTrip = !!isRoundTrip;
+    }
+    // Keep existing isRoundTrip flag if present; callers may update state.currentLoadedRouteId separately
     
     saveSavedRoutes(routes);
     console.log('Route updated:', route);
@@ -182,7 +187,8 @@ export function importSavedRoutes(file: File, refreshCallback: () => void): void
                 const newRoute: SavedRoute = {
                     ...route,
                     id: generateRouteId(),
-                    points: route.points.map(point => L.latLng(point.lat, point.lng))
+                    points: route.points.map(point => L.latLng(point.lat, point.lng)),
+                    isRoundTrip: (route as any).isRoundTrip || false
                 };
                 currentRoutes.push(newRoute);
                 importedCount++;

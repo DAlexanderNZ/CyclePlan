@@ -20,6 +20,7 @@ import {
     setupSaveRouteModal, 
     setupRenameRouteModal, 
     setupSavedRoutesModal,
+    setupRoundTripButton,
     setupSettingsModal,
     openRenameRouteModal,
     closeSavedRoutesModal
@@ -34,6 +35,7 @@ const appState: AppState = {
     currentRouteDistance: 0,
     currentRenamingRouteId: null,
     currentLoadedRouteId: null,
+    isRoundTrip: false,
     isRouteModified: false,
     config: null
 };
@@ -107,7 +109,7 @@ function initializeMap(): void {
     addInfoControl(appState.map);
 }
 
-async function updateRoute(): Promise<void> {
+export async function updateRoute(): Promise<void> {
     if (!appState.routeLayer || !appState.map) return;
     
     if (appState.routingPoints.length < 2) {
@@ -121,7 +123,7 @@ async function updateRoute(): Promise<void> {
     console.log('Updating route with points:', appState.routingPoints);
     
     try {
-        const result = await fetchOsrmRoute(appState.routingPoints, osrmUrl);
+    const result = await fetchOsrmRoute(appState.routingPoints, osrmUrl, appState.isRoundTrip);
         if (result) {
             console.log('OSRM profile used:', result.profile);
             drawRoute(
@@ -176,6 +178,8 @@ function setupEventHandlers(): void {
             removeRoutingPoint(nearestIndex, appState, appState.map!, osrmUrl, updateRoute);
         }
     });
+
+    setupRoundTripButton(appState);
 
     // Reset button event handler
     const resetButton = document.getElementById('resetRoute');

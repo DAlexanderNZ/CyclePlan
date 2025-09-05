@@ -230,6 +230,8 @@ export function loadSavedRoute(routeId: string, state: AppState, map: L.Map, osr
     state.routingPoints = route.points.map(point => L.latLng(point.lat, point.lng));
     state.currentRouteDistance = route.distance;
     state.currentLoadedRouteId = routeId;
+    // Restore round-trip flag if present
+    state.isRoundTrip = !!(route as any).isRoundTrip;
     state.isRouteModified = false;
     
     redrawMarkers(state, map, osrmUrl, updateRoute);
@@ -261,9 +263,10 @@ export function refreshSavedRoutesTable(): void {
             ? `${(route.distance / 1000).toFixed(2)} km`
             : `${route.distance} m`;
 
+        const roundTripLabel = (route as any).isRoundTrip ? ' (Round Trip)' : '';
         row.innerHTML = `
             <td><input type="checkbox" class="route-checkbox" data-route-id="${route.id}"></td>
-            <td class="route-name" data-route-id="${route.id}">${route.name}</td>
+            <td class="route-name" data-route-id="${route.id}">${route.name}${roundTripLabel}</td>
             <td>${route.description || ''}</td>
             <td>${pointCount}</td>
             <td>${distanceDisplay}</td>

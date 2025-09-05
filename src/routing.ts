@@ -25,7 +25,7 @@ export async function snapToNearestRoad(latlng: L.LatLng, osrmUrl: string): Prom
     }
 }
 
-export async function fetchOsrmRoute(waypoints: L.LatLng[], osrmUrl: string): Promise<{route: any, profile: string} | null> {
+export async function fetchOsrmRoute(waypoints: L.LatLng[], osrmUrl: string, isRoundTrip: boolean = false): Promise<{route: any, profile: string} | null> {
     if (waypoints.length < 2) {
         return null;
     }
@@ -43,8 +43,41 @@ export async function fetchOsrmRoute(waypoints: L.LatLng[], osrmUrl: string): Pr
     
     const coords = validWaypoints.map(point => `${point.lng},${point.lat}`).join(';');
     const params = 'overview=full&geometries=geojson&steps=false';
-
     const profile = 'cycling';
+
+    // For round trips we use the Route service and append the first coordinate
+    // as the final waypoint. We don't use the OSRM Trip service here because
+    // Trip may reorder intermediate waypoints to optimize the tour (TSP).
+    // That reordering breaks use-cases where the user expects points to be
+    // visited in the same sequence they were placed (for example: out-and-back
+    // along the same cycleway). Appending the start as the last point forces
+    // the route service to build an explicit round-trip that preserves input
+    // ordering while returning to the start.
+    if (isRoundTrip && validWaypoints.length >= 3) {
+        // Build coords with the first point appended as the final coordinate
+        const first = validWaypoints[0]!;
+        const coordsWithReturn = coords + ';' + `${first.lng},${first.lat}`;
+        const url = `${osrmUrl}route/v1/${profile}/${coordsWithReturn}?${params}`;
+        try {
+            const res = await fetch(url);
+            if (!res.ok) {
+                const errorText = await res.text();
+                console.error('OSRM route server error (roundtrip), status:', res.status, 'Response:', errorText);
+                throw new Error(`OSRM route server returned status ${res.status}: ${errorText}`);
+            }
+            const data = await res.json();
+            if (data && data.routes && data.routes.length) {
+                return {route: data.routes[0], profile};
+            } else {
+                throw new Error('No route found in response for roundtrip');
+            }
+        } catch (err) {
+            console.error('Fetch route (roundtrip) error:', err);
+            throw new Error('Roundtrip routing failed: ' + (err as Error).message);
+        }
+    }
+
+    // Regular route service for point-to-point
     const url = `${osrmUrl}route/v1/${profile}/${coords}?${params}`;
     try {
         const res = await fetch(url);
