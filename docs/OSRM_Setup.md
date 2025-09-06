@@ -16,7 +16,7 @@ If you want to use a customized OSRM profile, you can change the osrm-extract `-
 ### Setup
 
 ```bash
-./OSRMSetup.sh
+scripts/OSRMSetup.sh
 ```
 
 To modify the routing profile, you can edit the profile file [bicycle.lua](https://github.com/Project-OSRM/osrm-backend/blob/master/profiles/bicycle.lua). This allows you to customize the routing behavior according to your needs. After making changes to the profile file, you will need to re-run the `osrm-extract` and `osrm-partition` steps to apply the new routing profile.
