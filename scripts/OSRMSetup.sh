@@ -1,7 +1,7 @@
 #!/bin/bash
 # Find downloaded OSM PBF file or prompt for download
 # If more than one found, merge them with osmosis
-OSM_PBF_FILES=( $(find . -name "*.osm.pbf") )
+OSM_PBF_FILES=( $(find . .. -maxdepth 1 -name "*.osm.pbf") )
 
 if [ ${#OSM_PBF_FILES[@]} -eq 0 ]; then
     echo "No OSM PBF file found. Please download one from https://download.geofabrik.de/"
