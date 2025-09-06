@@ -391,3 +391,18 @@
     justify-content: space-between;
     align-items: center;
 }
+
+/* Tile service section styling */
+#localTileSettings, #externalTileSettings {
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    background-color: #f9f9f9;
+}
+
+#settingsForm h3 {
+    margin: 15px 0 10px 0;
+    color: #333;
+    font-size: 16px;
+}

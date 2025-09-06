@@ -109,10 +109,22 @@
                 <label for="osrmUrl">OSRM Server URL:</label>
                 <input type="text" id="osrmUrl" name="osrmUrl" value="http://localhost:5000" required>
                 <hr>
-                <label for="mapTileUrl">Map Tile URL:</label>
-                <input type="text" id="mapTileUrl" name="mapTileUrl" value="https://tile.thunderforest.com/cycle/" required>
-                <label for="mapTileApiKey">Map Tile API Key:</label>
-                <input type="text" id="mapTileApiKey" name="mapTileApiKey" value="" required>
+                <h3>Map Tile Service</h3>
+                <label for="useLocalTiles" class="switch-label">
+                    <span>Use Local Tile Service:</span>
+                    <input type="checkbox" id="useLocalTiles" name="useLocalTiles">
+                </label>
+                <div id="localTileSettings" style="margin-left: 20px; margin-bottom: 15px;">
+                    <label for="localTileUrl">Local Tile Server URL:</label>
+                    <input type="text" id="localTileUrl" name="localTileUrl" value="http://localhost:8080" required>
+                </div>
+                <div id="externalTileSettings">
+                    <label for="mapTileUrl">Map Tile URL:</label>
+                    <input type="text" id="mapTileUrl" name="mapTileUrl" value="https://tile.thunderforest.com/cycle/" required>
+                    <br>
+                        <label for="mapTileApiKey">Map Tile API Key:</label>
+                    <input type="text" id="mapTileApiKey" name="mapTileApiKey" value="" required>
+                </div>
                 <hr>
                 <!-- Placeholder for OpenTopoData Server Settings -->
                 <label for="enableOpenTopoData" class="switch-label">

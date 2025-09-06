@@ -6,6 +6,8 @@ export interface Config {
     osrmUrl?: string;
     mapTileUrl?: string;
     mapTileApiKey?: string;
+    useLocalTiles?: boolean;
+    localTileUrl?: string;
     enableOpenTopoData?: boolean;
     openTopoDataUrl?: string;
     openTopoDataDataSet?: string;

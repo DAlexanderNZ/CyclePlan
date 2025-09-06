@@ -3,10 +3,10 @@
 A self hosted cycling route planning map web application.
 
 ## Features
-- [x] Offline routing  with OSRM
+- [x] Offline routing with OSRM
 - Mapping
-    - [x] Hosted map tiles
-    - [ ] Locally hosted map tiles
+    - [x] Hosted map tiles (Thunderforest)
+    - [x] Locally hosted map tiles
 - [x] Save and manage routes
 - Export Routes
     - [ ] To your preferred file format
@@ -21,20 +21,31 @@ A self hosted cycling route planning map web application.
 
 ## Setup
 
-After cloning the repository, you need to configure the API keys and server addresses:
+After cloning the repository, setup routing with OSRM and then you have two options for map tiles.
 
 1. [Setup OSRM routing server](docs/OSRM_Setup.md)
 
-2. Run the interactive server setup script:
+### Option 1: Using Local Tile Service (Recommended for offline use)
+
+2. Setup local tile service
+
+### Option 2: Using Thunderforest (External service)
+
+2. Get a free API key from [Thunderforest](https://www.thunderforest.com/)
+
+### Run the interactive setup script
+3. Run the interactive setup script:
    ```bash
    bun run setup
    ```
-   
-   The setup script will prompt you for:
-   - **Thunderforest API Key**: Get an API key from [Thunderforest](https://www.thunderforest.com/)
-   - **OSRM Server Address**: Enter your OSRM server address (defaults to "localhost:5000")
+   - Choose option 1 for local tiles or option 2 for Thunderforest
+   - Enter your local tile server URL (default: http://localhost:8080) if using local tiles
+   - Enter your Thunderforest API key if using Thunderforest
+   - Enter your OSRM server address (default: localhost:5000)
 
-3. Start the development server:
+### Starting the Application
+
+4. Start the development server:
    ```bash
    bun run server
    ```

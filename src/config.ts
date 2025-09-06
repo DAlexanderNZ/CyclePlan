@@ -8,10 +8,19 @@ export async function loadConfig(): Promise<Config> {
         }
         const config: Config = await response.json();
         
-        // Validate required fields
-        if (!config.thunderApiKey || config.thunderApiKey === 'YOUR_THUNDERFOREST_API_KEY_HERE') {
-            throw new Error('Please set your Thunderforest API key in config.json');
+        // Validate required fields based on tile service choice
+        if (config.useLocalTiles) {
+            // For local tiles, we only need localTileUrl
+            if (!config.localTileUrl) {
+                throw new Error('Local tile URL is required when using local tiles');
+            }
+        } else {
+            // For external tiles, we need thunderApiKey
+            if (!config.thunderApiKey || config.thunderApiKey === 'YOUR_THUNDERFOREST_API_KEY_HERE') {
+                throw new Error('Please set your Thunderforest API key in config.json');
+            }
         }
+        
         if (!config.osrmAddress || config.osrmAddress === 'YOUR_OSRM_SERVER_ADDRESS_HERE') {
             throw new Error('Please set your OSRM server address in config.json');
         }
@@ -25,6 +34,12 @@ export async function loadConfig(): Promise<Config> {
         }
         if (!config.mapTileApiKey) {
             config.mapTileApiKey = config.thunderApiKey;
+        }
+        if (config.useLocalTiles === undefined) {
+            config.useLocalTiles = false;
+        }
+        if (!config.localTileUrl) {
+            config.localTileUrl = 'http://localhost:8080';
         }
         if (config.enableOpenTopoData === undefined) {
             config.enableOpenTopoData = false;

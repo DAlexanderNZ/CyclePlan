@@ -368,11 +368,30 @@ export function setupSettingsModal(state: AppState): void {
     const cancelBtn = modal?.querySelector('.cancel');
     const form = document.getElementById('settingsForm');
 
+    // Function to toggle tile service settings visibility
+    function toggleTileServiceSettings() {
+        const useLocalTilesInput = document.getElementById('useLocalTiles') as HTMLInputElement;
+        const localTileSettings = document.getElementById('localTileSettings');
+        const externalTileSettings = document.getElementById('externalTileSettings');
+        
+        if (useLocalTilesInput && localTileSettings && externalTileSettings) {
+            if (useLocalTilesInput.checked) {
+                localTileSettings.style.display = 'block';
+                externalTileSettings.style.display = 'none';
+            } else {
+                localTileSettings.style.display = 'none';
+                externalTileSettings.style.display = 'block';
+            }
+        }
+    }
+
     if (settingsBtn) {
         settingsBtn.addEventListener('click', () => {
             if (state.config) {
                 // Populate form with current config values
                 const osrmUrlInput = document.getElementById('osrmUrl') as HTMLInputElement;
+                const useLocalTilesInput = document.getElementById('useLocalTiles') as HTMLInputElement;
+                const localTileUrlInput = document.getElementById('localTileUrl') as HTMLInputElement;
                 const mapTileUrlInput = document.getElementById('mapTileUrl') as HTMLInputElement;
                 const mapTileApiKeyInput = document.getElementById('mapTileApiKey') as HTMLInputElement;
                 const enableOpenTopoDataInput = document.getElementById('enableOpenTopoData') as HTMLInputElement;
@@ -380,11 +399,19 @@ export function setupSettingsModal(state: AppState): void {
                 const openTopoDataDataSetSelect = document.getElementById('OpenTopoDataDataSet') as HTMLSelectElement;
 
                 if (osrmUrlInput) osrmUrlInput.value = state.config.osrmUrl || `http://${state.config.osrmAddress}/`;
+                if (useLocalTilesInput) useLocalTilesInput.checked = state.config.useLocalTiles || false;
+                if (localTileUrlInput) localTileUrlInput.value = state.config.localTileUrl || 'http://localhost:8080';
                 if (mapTileUrlInput) mapTileUrlInput.value = state.config.mapTileUrl || 'https://tile.thunderforest.com/cycle/';
                 if (mapTileApiKeyInput) mapTileApiKeyInput.value = state.config.mapTileApiKey || state.config.thunderApiKey;
                 if (enableOpenTopoDataInput) enableOpenTopoDataInput.checked = state.config.enableOpenTopoData || false;
                 if (openTopoDataUrlInput) openTopoDataUrlInput.value = state.config.openTopoDataUrl || 'http://localhost:5010';
                 if (openTopoDataDataSetSelect) openTopoDataDataSetSelect.value = state.config.openTopoDataDataSet || 'srtm';
+                
+                // Set up toggle listener and initial state
+                if (useLocalTilesInput) {
+                    useLocalTilesInput.addEventListener('change', toggleTileServiceSettings);
+                }
+                toggleTileServiceSettings();
             }
             
             modal!.style.display = 'block';
@@ -410,9 +437,12 @@ export function setupSettingsModal(state: AppState): void {
             
             // Update config with new values
             if (state.config) {
+                const useLocalTiles = formData.has('useLocalTiles');
                 const newConfig = {
                     ...state.config,
                     osrmUrl: formData.get('osrmUrl') as string,
+                    useLocalTiles: useLocalTiles,
+                    localTileUrl: formData.get('localTileUrl') as string,
                     mapTileUrl: formData.get('mapTileUrl') as string,
                     mapTileApiKey: formData.get('mapTileApiKey') as string,
                     enableOpenTopoData: formData.has('enableOpenTopoData'),
@@ -420,19 +450,28 @@ export function setupSettingsModal(state: AppState): void {
                     openTopoDataDataSet: formData.get('OpenTopoDataDataSet') as string
                 };
 
-                // Validate required fields
+                // Validate required fields based on tile service choice
                 if (!newConfig.osrmUrl.trim()) {
                     alert('OSRM Server URL is required.');
                     return;
                 }
-                if (!newConfig.mapTileUrl.trim()) {
-                    alert('Map Tile URL is required.');
-                    return;
+                
+                if (useLocalTiles) {
+                    if (!newConfig.localTileUrl.trim()) {
+                        alert('Local Tile Server URL is required when using local tiles.');
+                        return;
+                    }
+                } else {
+                    if (!newConfig.mapTileUrl.trim()) {
+                        alert('Map Tile URL is required when using external tiles.');
+                        return;
+                    }
+                    if (!newConfig.mapTileApiKey.trim()) {
+                        alert('Map Tile API Key is required when using external tiles.');
+                        return;
+                    }
                 }
-                if (!newConfig.mapTileApiKey.trim()) {
-                    alert('Map Tile API Key is required.');
-                    return;
-                }
+                
                 if (newConfig.enableOpenTopoData && !newConfig.openTopoDataUrl.trim()) {
                     alert('OpenTopoData Server URL is required when elevation is enabled.');
                     return;
@@ -441,6 +480,11 @@ export function setupSettingsModal(state: AppState): void {
                 // Update the state config
                 state.config = newConfig;
                 modal!.style.display = 'none';
+                
+                // Reload the page to apply tile service changes
+                if (confirm('Settings saved. The page will reload to apply tile service changes.')) {
+                    location.reload();
+                }
             }
         });
     }

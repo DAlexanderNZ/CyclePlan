@@ -64,11 +64,24 @@ function initializeMap(): void {
     // Configure tile layer with caching options
     // Add cache-friendly parameters to the URL
     const cacheTimestamp = Math.floor(Date.now() / (1000 * 60 * 60 * 24)); // Daily cache key
-    const tileUrl = appState.config.mapTileUrl || 'https://tile.thunderforest.com/cycle/';
-    const apiKey = appState.config.mapTileApiKey || appState.config.thunderApiKey;
-    const tileLayer = L.tileLayer(`${tileUrl}{z}/{x}/{y}.png?apikey=${apiKey}&cache=${cacheTimestamp}`, {
+    
+    let tileUrl: string;
+    let attribution: string;
+    
+    if (appState.config.useLocalTiles) {
+        // Use local tile service
+        tileUrl = `${appState.config.localTileUrl}/tile/{z}/{x}/{y}.png?cache=${cacheTimestamp}`;
+        attribution = 'Map data &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> Style <a href="https://github.com/cyclosm/cyclosm-cartocss-style">CyclOSM</a>';
+    } else {
+        // Use Thunderforest tiles
+        const apiKey = appState.config.mapTileApiKey || appState.config.thunderApiKey;
+        tileUrl = `${appState.config.mapTileUrl}/cycle/{z}/{x}/{y}.png?apikey=${apiKey}&cache=${cacheTimestamp}`;
+        attribution = 'Maps &copy; <a href="https://www.thunderforest.com">Thunderforest</a> Data &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+    }
+    
+    const tileLayer = L.tileLayer(tileUrl, {
         maxZoom: 19,
-        attribution: 'Maps &copy; <a href="https://www.thunderforest.com">Thunderforest</a> Data &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        attribution: attribution,
         // Cache configuration
         maxNativeZoom: 19,
         crossOrigin: 'anonymous', // Enable CORS for better caching

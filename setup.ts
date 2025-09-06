@@ -28,18 +28,40 @@ async function setup() {
     try {
         console.log('📝 Please provide the following configuration:\n');
         
-        // Prompt for Thunderforest API Key
-        console.log('🔑 Thunderforest API Key:');
-        console.log('   Get your free API key from: https://www.thunderforest.com/');
-        console.log('   1. Sign up for a free account');
-        console.log('   2. Go to your API key dashboard');
-        console.log('   3. Copy your API key\n');
+        // Prompt for tile service choice
+        console.log('🗺️  Map Tile Service:');
+        console.log('   Choose your tile service:');
+        console.log('   1. Local tile service (self-hosted)');
+        console.log('   2. Thunderforest (external service)\n');
         
-        const thunderApiKey = await prompt('Enter your Thunderforest API key: ');
+        const tileChoice = await prompt('Enter your choice (1 for local, 2 for Thunderforest) [2]: ');
+        const useLocalTiles = tileChoice === '1';
         
-        if (!thunderApiKey || thunderApiKey === '') {
-            console.log('❌ API key is required. Setup cancelled.');
-            process.exit(1);
+        let thunderApiKey = '';
+        let localTileUrl = '';
+        
+        if (useLocalTiles) {
+            console.log('\n🏠 Local Tile Service Configuration:');
+            console.log('   Make sure your local tile service is running.');
+            console.log('   Default: http://localhost:8080\n');
+            
+            localTileUrl = await prompt('Enter your local tile server URL [http://localhost:8080]: ');
+            if (!localTileUrl) localTileUrl = 'http://localhost:8080';
+            
+        } else {
+            // Prompt for Thunderforest API Key
+            console.log('\n🔑 Thunderforest API Key:');
+            console.log('   Get your free API key from: https://www.thunderforest.com/');
+            console.log('   1. Sign up for a free account');
+            console.log('   2. Go to your API key dashboard');
+            console.log('   3. Copy your API key\n');
+            
+            thunderApiKey = await prompt('Enter your Thunderforest API key: ');
+            
+            if (!thunderApiKey || thunderApiKey === '') {
+                console.log('❌ API key is required for Thunderforest. Setup cancelled.');
+                process.exit(1);
+            }
         }
         
         // Prompt for OSRM Server Address
@@ -53,17 +75,27 @@ async function setup() {
         const finalOsrmAddress = osrmAddress || 'localhost:5000';
         
         // Create config object
-        const config = {
-            thunderApiKey: thunderApiKey,
-            osrmAddress: finalOsrmAddress
+        const config: any = {
+            thunderApiKey: thunderApiKey || 'dummy-key-for-local-tiles',
+            osrmAddress: finalOsrmAddress,
+            useLocalTiles: useLocalTiles
         };
+        
+        if (useLocalTiles) {
+            config.localTileUrl = localTileUrl;
+        }
         
         // Write config to file
         await writeFile('public/config.json', JSON.stringify(config, null, 2));
         
         console.log('\n✅ Configuration saved to public/config.json');
         console.log('\n📄 Generated configuration:');
-        console.log(`   Thunder API Key: ${thunderApiKey.substring(0, 8)}...`);
+        if (useLocalTiles) {
+            console.log(`   Tile Service: Local (${localTileUrl})`);
+        } else {
+            console.log(`   Thunder API Key: ${thunderApiKey.substring(0, 8)}...`);
+            console.log(`   Tile Service: Thunderforest`);
+        }
         console.log(`   OSRM Address: ${finalOsrmAddress}`);
         console.log('\n⚠️  Note: public/config.json is not tracked in git for security reasons');
         console.log('\n🏗️  Building application...');
