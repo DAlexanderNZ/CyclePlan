@@ -2,5 +2,5 @@
   "thunderApiKey": "YOUR_THUNDERFOREST_API_KEY_HERE",
   "osrmAddress": "YOUR_OSRM_SERVER_ADDRESS_HERE",
   "useLocalTiles": false,
-  "localTileUrl": "http://localhost:8080"
+  "localTileAddress": "localhost:8080"
 }

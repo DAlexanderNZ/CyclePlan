@@ -7,8 +7,10 @@ export interface Config {
     mapTileUrl?: string;
     mapTileApiKey?: string;
     useLocalTiles?: boolean;
+    localTileAddress?: string;
     localTileUrl?: string;
     enableOpenTopoData?: boolean;
+    openTopoDataAddress?: string;
     openTopoDataUrl?: string;
     openTopoDataDataSet?: string;
 }

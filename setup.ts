@@ -38,16 +38,17 @@ async function setup() {
         const useLocalTiles = tileChoice === '1';
         
         let thunderApiKey = '';
-        let localTileUrl = '';
+        let localTileAddress = '';
         
         if (useLocalTiles) {
             console.log('\n🏠 Local Tile Service Configuration:');
             console.log('   Make sure your local tile service is running.');
-            console.log('   Default: http://localhost:8080\n');
+            console.log('   Enter host:port (e.g., localhost:8080, 192.168.1.100:8080)');
+            console.log('   Default: localhost:8080\n');
             console.log('   WARNING: Initial tile rendering may take some time for larger zoom levels.\n');
             
-            localTileUrl = await prompt('Enter your local tile server URL [http://localhost:8080]: ');
-            if (!localTileUrl) localTileUrl = 'http://localhost:8080';
+            localTileAddress = await prompt('Enter your local tile server address [localhost:8080]: ');
+            if (!localTileAddress) localTileAddress = 'localhost:8080';
             
         } else {
             // Prompt for Thunderforest API Key
@@ -83,7 +84,7 @@ async function setup() {
         };
         
         if (useLocalTiles) {
-            config.localTileUrl = localTileUrl;
+            config.localTileAddress = localTileAddress;
         }
         
         // Write config to file
@@ -92,7 +93,7 @@ async function setup() {
         console.log('\n✅ Configuration saved to public/config.json');
         console.log('\n📄 Generated configuration:');
         if (useLocalTiles) {
-            console.log(`   Tile Service: Local (${localTileUrl})`);
+            console.log(`   Tile Service: Local (http://${localTileAddress})`);
         } else {
             console.log(`   Thunder API Key: ${thunderApiKey.substring(0, 8)}...`);
             console.log(`   Tile Service: Thunderforest`);
