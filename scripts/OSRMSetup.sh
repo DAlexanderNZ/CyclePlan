@@ -1,6 +1,8 @@
 #!/bin/bash
 # Find downloaded OSM PBF file or prompt for download
 # If more than one found, merge them with osmosis
+set -e
+
 OSM_PBF_FILES=( $(find . .. -maxdepth 1 -name "*.osm.pbf") )
 
 if [ ${#OSM_PBF_FILES[@]} -eq 0 ]; then

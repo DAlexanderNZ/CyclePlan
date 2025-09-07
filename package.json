@@ -7,7 +7,14 @@
     "setup": "bun run setup.ts",
     "build": "bun build src/map.ts --outdir public --target browser --format iife --minify --entry-naming '[name].[ext]'",
     "dev": "bun --watch run build",
-    "server": "bun run build && bun run index.ts"
+    "server": "bun run build && bun run index.ts",
+    "services:start": "./scripts/start-services.sh",
+    "services:stop": "./scripts/start-services.sh --stop",
+    "services:restart": "./scripts/start-services.sh --restart",
+    "services:status": "./scripts/start-services.sh --status",
+    "services:logs": "./scripts/start-services.sh --logs",
+    "osrm:start": "./scripts/start-services.sh --osrm-only",
+    "tiles:start": "./scripts/start-services.sh --tiles-only"
   },
   "devDependencies": {
     "@types/bun": "latest"

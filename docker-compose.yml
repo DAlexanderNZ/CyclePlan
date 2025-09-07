@@ -1,0 +1,61 @@
+services:
+  # OSRM Backend Service
+  osrm:
+    image: ghcr.io/project-osrm/osrm-backend
+    container_name: cycleplan-osrm
+    ports:
+      - "5000:5000"
+    volumes:
+      - .:/data
+    command: ["osrm-routed", "--algorithm", "mld", "/data/placeholder.osrm"]
+    restart: unless-stopped
+    depends_on:
+      - osrm-check
+    profiles:
+      - osrm
+      - all
+
+  # Service to check if OSRM data exists before starting
+  osrm-check:
+    image: busybox
+    container_name: cycleplan-osrm-check
+    volumes:
+      - .:/data
+    command: >
+      sh -c "
+        echo 'Checking for OSRM data files...';
+        OSM_FILES=$$(find /data -maxdepth 1 -name '*.osrm' | head -1);
+        if [ -z \"$$OSM_FILES\" ]; then
+          echo 'Error: No .osrm files found in the current directory.';
+          echo 'Please run the OSRM setup script first:';
+          echo '  ./scripts/OSRMSetup.sh';
+          exit 1;
+        fi;
+        echo 'OSRM data files found. Ready to start OSRM service.';
+        exit 0;
+      "
+    profiles:
+      - osrm
+      - all
+
+  # Tile Server Service
+  tile-server:
+    build: ./cyclosm-tile-server
+    container_name: cycleplan-tiles
+    volumes:
+      - osm-data:/data/database/
+      - osm-tiles:/data/tiles/
+    ports:
+      - "8080:80"
+    command: "run"
+    environment:
+      - ALLOW_CORS=enabled
+    restart: unless-stopped
+    profiles:
+      - tiles
+      - all
+
+volumes:
+  osm-data:
+    external: true
+  osm-tiles:

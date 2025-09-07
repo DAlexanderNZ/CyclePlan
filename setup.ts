@@ -44,6 +44,7 @@ async function setup() {
             console.log('\n🏠 Local Tile Service Configuration:');
             console.log('   Make sure your local tile service is running.');
             console.log('   Default: http://localhost:8080\n');
+            console.log('   WARNING: Initial tile rendering may take some time for larger zoom levels.\n');
             
             localTileUrl = await prompt('Enter your local tile server URL [http://localhost:8080]: ');
             if (!localTileUrl) localTileUrl = 'http://localhost:8080';
@@ -109,7 +110,7 @@ async function setup() {
         
         if (buildProcess.exitCode === 0) {
             console.log('\n🎉 Setup complete! You can now run the server with:');
-            console.log('   bun run index.ts');
+            console.log('   bun run server');
         } else {
             console.log('\n⚠️  Setup complete, but build failed. Please run:');
             console.log('   bun run build');
