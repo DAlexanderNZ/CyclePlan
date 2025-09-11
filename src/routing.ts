@@ -99,7 +99,7 @@ export async function fetchOsrmRoute(waypoints: L.LatLng[], osrmUrl: string, isR
 }
 
 // Draw route as red polyline on the routePane
-export function drawRoute(geojson: any, routeLayer: L.LayerGroup, map: L.Map, insertWaypointAtBestPosition: (point: L.LatLng) => Promise<void>): void {
+export function drawRoute(geojson: any, routeLayer: L.LayerGroup, map: L.Map, insertWaypointAtBestPosition: (dropPoint: L.LatLng, anchorPoint: L.LatLng, polyline?: L.Polyline | null) => Promise<void>): void {
     // Clear previous route
     routeLayer.clearLayers();
     if (geojson) {
@@ -114,6 +114,7 @@ export function drawRoute(geojson: any, routeLayer: L.LayerGroup, map: L.Map, in
                 // Add mousedown event to start dragging new waypoint
                 layer.on('mousedown', function(e) {
                     let dragPoint = e.latlng;
+                    const anchorPoint = e.latlng;
                     let isDragging = false;
                     let tempMarker: L.Marker | null = null;
                     
@@ -151,7 +152,7 @@ export function drawRoute(geojson: any, routeLayer: L.LayerGroup, map: L.Map, in
                         
                         if (isDragging) {
                             // Find the best position to insert the new waypoint
-                            insertWaypointAtBestPosition(dragPoint);
+                            insertWaypointAtBestPosition(dragPoint, anchorPoint, layer as L.Polyline);
                         }
                     }
                     

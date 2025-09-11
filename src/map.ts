@@ -143,7 +143,8 @@ export async function updateRoute(): Promise<void> {
                 result.route.geometry, 
                 appState.routeLayer, 
                 appState.map, 
-                (point: L.LatLng) => insertWaypointAtBestPosition(point, appState, appState.map!, osrmUrl, updateRoute)
+                // forward polyline from routing.drawRoute to our insert function
+                (dropPoint: L.LatLng, anchorPoint: L.LatLng, polyline?: L.Polyline | null) => insertWaypointAtBestPosition(dropPoint, appState, appState.map!, osrmUrl, updateRoute, polyline, anchorPoint)
             );
             
             // Extract and store the route distance

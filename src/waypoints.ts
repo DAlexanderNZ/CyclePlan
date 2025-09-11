@@ -38,7 +38,7 @@ export function createNumberedMarker(latlng: L.LatLng, number: number, map: L.Ma
         } else {
             // If snapping fails, use the dragged position
             state.routingPoints[(marker as any).pointIndex] = newLatLng;
-        }
+    }
         
         // Mark route as modified
         state.isRouteModified = true;
@@ -127,42 +127,228 @@ export async function addRoutingPoint(latlng: L.LatLng, state: AppState, map: L.
     updateRoute();
 }
 
-// Find the closest road position to user click to insert a new waypoint 
-export async function insertWaypointAtBestPosition(newPoint: L.LatLng, state: AppState, map: L.Map, osrmUrl: string, updateRoute: () => Promise<void>): Promise<void> {
-    if (state.routingPoints.length < 2) return;
+// Waypoint insertion helpers
+
+function extractLatLngsFromPolyline(polyline: L.Polyline): L.LatLng[] {
+    const raw = (polyline as any).getLatLngs();
+    if (Array.isArray(raw) && raw.length && Array.isArray(raw[0])) {
+        return (raw as L.LatLng[][]).flat();
+    }
+    return raw as L.LatLng[];
+}
+
+function calculateCumulativeDistances(routeLatLngs: L.LatLng[]): number[] {
+    const cumulative: number[] = [0];
+    for (let i = 1; i < routeLatLngs.length; i++) {
+        cumulative.push(
+            cumulative[i - 1]! + routeLatLngs[i - 1]!.distanceTo(routeLatLngs[i]!)
+        );
+    }
+    return cumulative;
+}
+
+function findPolylineForInsertion(state: AppState, providedPolyline?: L.Polyline | null): L.Polyline | null {
+    if (providedPolyline) return providedPolyline;
     
-    let bestIndex = 1; // Insert after first point by default
-    let minDistance = Infinity;
+    if (state.routeLayer) {
+        let foundPolyline: L.Polyline | null = null;
+        state.routeLayer.eachLayer((layer: any) => {
+            if (!foundPolyline && layer instanceof L.Polyline) {
+                foundPolyline = layer as L.Polyline;
+            }
+        });
+        return foundPolyline;
+    }
     
-    const { getDistanceToLineSegment, snapToNearestRoad } = await import('./routing');
+    return null;
+}
+
+function projectPointOntoPolyline(point: L.LatLng, routeLatLngs: L.LatLng[], cumulativeDistances: number[]): { distance: number; alongDistance: number } {
+    const totalLength = cumulativeDistances[cumulativeDistances.length - 1]!;
+    let best = { distance: Infinity, alongDistance: 0 };
     
-    // Find which segment the new point is closest to
-    for (let i = 0; i < state.routingPoints.length - 1; i++) {
-        const segmentStart = state.routingPoints[i];
-        const segmentEnd = state.routingPoints[i + 1];
+    for (let i = 0; i < routeLatLngs.length - 1; i++) {
+        const A = routeLatLngs[i]!;
+        const B = routeLatLngs[i + 1]!;
+        const Ax = A.lat, Ay = A.lng;
+        const Bx = B.lat, By = B.lng;
+        const Px = point.lat, Py = point.lng;
+        const Cx = Bx - Ax, Cy = By - Ay;
+        const lengthSquared = Cx * Cx + Cy * Cy;
         
-        if (segmentStart && segmentEnd) {
-            // Calculate distance from point to line segment
-            const distance = getDistanceToLineSegment(newPoint, segmentStart, segmentEnd);
-            
+        let t = lengthSquared === 0 ? 0 : ((Px - Ax) * Cx + (Py - Ay) * Cy) / lengthSquared;
+        t = Math.max(0, Math.min(1, t));
+        
+        const projectedPoint = L.latLng(Ax + t * Cx, Ay + t * Cy);
+        const distanceToPoint = projectedPoint.distanceTo(point);
+        const distanceAlongSegment = A.distanceTo(projectedPoint);
+        const alongDistance = cumulativeDistances[i]! + distanceAlongSegment;
+        
+        if (distanceToPoint < best.distance) {
+            best = { distance: distanceToPoint, alongDistance };
+        }
+    }
+    
+    best.alongDistance = Math.max(0, Math.min(totalLength, best.alongDistance));
+    return best;
+}
+
+// Find the best insertion index using polyline projection
+function findBestInsertionIndex(
+    routingPoints: L.LatLng[],
+    anchorPoint: L.LatLng,
+    routeLatLngs: L.LatLng[],
+    cumulativeDistances: number[]
+): number {
+    const totalLength = cumulativeDistances[cumulativeDistances.length - 1]!;
+    const routingPointsAlong = routingPoints.map(rp => 
+        projectPointOntoPolyline(rp, routeLatLngs, cumulativeDistances).alongDistance
+    );
+    const newAlong = projectPointOntoPolyline(anchorPoint, routeLatLngs, cumulativeDistances).alongDistance;
+    
+    const m = routingPoints.length;
+    
+    // Find insertion between consecutive routing points (by their order)
+    for (let i = 0; i < m; i++) {
+        const a = routingPointsAlong[i]!;
+        let b = routingPointsAlong[(i + 1) % m]!;
+        let na = newAlong;
+        
+        // Handle wrap-around for the last segment
+        if (i === m - 1 && b <= a) b += totalLength;
+        if (na < a) na += totalLength;
+        
+        if (na > a && na <= b) {
+            return i + 1;
+        }
+    }
+    
+    // If no gap found, pick the gap with smallest distance
+    let bestGap = Infinity;
+    let bestIndex = m;
+    
+    for (let i = 0; i < m; i++) {
+        const a = routingPointsAlong[i]!;
+        let b = routingPointsAlong[(i + 1) % m]!;
+        let gap = b - a;
+        
+        if (i === m - 1 && b <= a) gap = (b + totalLength) - a;
+        
+        if (gap < bestGap) {
+            bestGap = gap;
+            bestIndex = i + 1;
+        }
+    }
+    
+    return bestIndex;
+}
+
+async function insertWaypointByPolylineProjection(
+    dropPoint: L.LatLng,
+    state: AppState,
+    map: L.Map,
+    osrmUrl: string,
+    updateRoute: () => Promise<void>,
+    polyline: L.Polyline,
+    anchorPoint?: L.LatLng
+): Promise<boolean> {
+    try {
+        const routeLatLngs = extractLatLngsFromPolyline(polyline);
+        if (routeLatLngs.length < 2) return false;
+        
+        const cumulativeDistances = calculateCumulativeDistances(routeLatLngs);
+        
+        const insertIndex = findBestInsertionIndex(
+            state.routingPoints,
+            anchorPoint || dropPoint,
+            routeLatLngs,
+            cumulativeDistances
+        );
+        
+        const { snapToNearestRoad } = await import('./routing');
+        const snapped = await snapToNearestRoad(dropPoint, osrmUrl);
+        const pointToInsert = snapped || dropPoint;
+        
+        state.routingPoints.splice(insertIndex, 0, pointToInsert);
+        state.isRouteModified = true;
+        redrawMarkers(state, map, osrmUrl, updateRoute);
+        updatePointCount(state);
+        await updateRoute();
+        
+        return true;
+    } catch (err) {
+        console.warn('Polyline projection insertion failed:', err);
+        return false;
+    }
+}
+
+// Fallback insertion by nearest segment
+async function insertWaypointByNearestSegment(
+    dropPoint: L.LatLng, 
+    state: AppState, 
+    map: L.Map, 
+    osrmUrl: string, 
+    updateRoute: () => Promise<void>,
+    anchorPoint?: L.LatLng
+): Promise<void> {
+    const { getDistanceToLineSegment, snapToNearestRoad } = await import('./routing');
+    const referencePoint = anchorPoint || dropPoint;
+    const n = state.routingPoints.length;
+    let bestCandidate = 1;
+    let minDistance = Infinity;
+    let bestSegmentIndex = 0;
+    
+    for (let i = 0; i < n; i++) {
+        const a = state.routingPoints[i];
+        const b = state.routingPoints[(i + 1) % n];
+        if (a && b) {
+            const distance = getDistanceToLineSegment(referencePoint, a, b);
             if (distance < minDistance) {
                 minDistance = distance;
-                bestIndex = i + 1;
+                bestCandidate = (i + 1) % n;
+                bestSegmentIndex = i;
             }
         }
     }
     
-    // Snap the new point to the nearest road
-    const snappedPoint = await snapToNearestRoad(newPoint, osrmUrl);
-    const pointToInsert = snappedPoint || newPoint;
+    const insertIndex = (bestCandidate === 0 && bestSegmentIndex === n - 1) ? n : bestCandidate;
+    const snapped = await snapToNearestRoad(dropPoint, osrmUrl);
+    const pointToInsert = snapped || dropPoint;
     
-    // Insert the new waypoint at the best position
-    state.routingPoints.splice(bestIndex, 0, pointToInsert);
+    state.routingPoints.splice(insertIndex, 0, pointToInsert);
     state.isRouteModified = true;
     redrawMarkers(state, map, osrmUrl, updateRoute);
     updatePointCount(state);
-    updateRoute();
+    await updateRoute();
 }
+
+// Find the closest road position to user click to insert a new waypoint 
+export async function insertWaypointAtBestPosition(
+    dropPoint: L.LatLng, 
+    state: AppState, 
+    map: L.Map, 
+    osrmUrl: string, 
+    updateRoute: () => Promise<void>, 
+    polyline?: L.Polyline | null, 
+    anchorPoint?: L.LatLng
+): Promise<void> {
+    if (state.routingPoints.length < 2) return;
+
+    // Try polyline-based insertion first
+    const usedPolyline = findPolylineForInsertion(state, polyline);
+    if (usedPolyline) {
+        const success = await insertWaypointByPolylineProjection(
+            dropPoint, state, map, osrmUrl, updateRoute, usedPolyline, anchorPoint
+        );
+        if (success) return;
+    }
+
+    // Fallback to nearest segment insertion
+    await insertWaypointByNearestSegment(
+        dropPoint, state, map, osrmUrl, updateRoute, anchorPoint
+    );
+}
+
 
 // Remove a routing point by index
 export function removeRoutingPoint(index: number, state: AppState, map: L.Map, osrmUrl: string, updateRoute: () => Promise<void>): void {
