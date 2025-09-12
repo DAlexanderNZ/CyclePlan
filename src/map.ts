@@ -178,7 +178,7 @@ function setupEventHandlers(): void {
         const clickPoint = e.latlng;
         let nearestIndex = -1;
         let nearestDistance = Infinity;
-        const maxDistance = 50; // Maximum distance in meters to consider for removal
+        const maxDistance = 100; // Maximum distance in meters to consider for removal
         
         appState.routingPoints.forEach((point, index) => {
             const distance = appState.map!.distance(clickPoint, point);
