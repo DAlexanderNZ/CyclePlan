@@ -204,7 +204,7 @@ function setupEventHandlers(): void {
     // Setup save and manage routes modals
     setupSaveRouteModal(appState);
     setupRenameRouteModal(appState);
-    setupSavedRoutesModal();
+    setupSavedRoutesModal(appState);
     setupSettingsModal(appState);
     
     // Custom event handlers for route management

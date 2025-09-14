@@ -2,7 +2,7 @@
 
 import L from 'leaflet';
 import type { AppState } from './types';
-import { getSavedRoutes, renameSavedRoute, exportSavedRoutes, importSavedRoutes, saveCurrentRoute, updateExistingRoute, saveSavedRoutes } from './routeStorage';
+import { getSavedRoutes, renameSavedRoute, exportSavedRoutes, importSavedRoutes, saveCurrentRoute, updateExistingRoute, saveSavedRoutes, exportRoutesAsGPX } from './routeStorage';
 import { refreshSavedRoutesTable, getSelectedRouteIds } from './waypoints';
 import { updateRoute } from './map';
 
@@ -265,7 +265,7 @@ export function openRenameRouteModal(routeId: string, state: AppState): void {
     }
 }
 
-export function setupSavedRoutesModal(): void {
+export function setupSavedRoutesModal(state: AppState): void {
     const modal = document.getElementById('manageSavedRoutesModal');
     const manageBtn = document.getElementById('manageSavedRoutes');
     const closeBtn = modal?.querySelector('.close');
@@ -324,10 +324,16 @@ export function setupSavedRoutesModal(): void {
     }
 
     if (exportSelectedBtn) {
-        exportSelectedBtn.addEventListener('click', () => {
+        exportSelectedBtn.addEventListener('click', async () => {
             const selectedIds = getSelectedRouteIds();
-            if (selectedIds.length > 0) {
+            if (selectedIds.length === 0) return;
+
+            const exportFormat = (document.getElementById('exportFormat') as HTMLSelectElement)?.value || 'json';
+            
+            if (exportFormat === 'json') {
                 exportSavedRoutes(selectedIds);
+            } else if (exportFormat === 'gpx') {
+                await exportRoutesAsGPX(selectedIds, state);
             }
         });
     }

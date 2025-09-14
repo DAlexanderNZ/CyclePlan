@@ -87,10 +87,10 @@ export async function fetchOsrmRoute(waypoints: L.LatLng[], osrmUrl: string, isR
             throw new Error(`OSRM server returned status ${res.status}: ${errorText}`);
         }
         const data = await res.json();
-        if (data && data.routes && data.routes.length) {
+        if (data && data.routes && data.routes.length && data.routes[0]) {
             return {route: data.routes[0], profile};
         } else {
-            throw new Error('No route found in response');
+            throw new Error('No valid route found in response');
         }
     } catch (err) {
         console.error('Fetch error:', err);

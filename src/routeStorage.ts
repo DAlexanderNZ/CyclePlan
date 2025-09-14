@@ -1,7 +1,9 @@
 /// <reference types="leaflet" />
 
 import L from 'leaflet';
-import type { SavedRoute } from './types';
+import type { SavedRoute, AppState } from './types';
+import { buildGPX } from './gpx';
+import { fetchOsrmRoute } from './routing';
 
 const SAVED_ROUTES_KEY = 'cycleplan_saved_routes';
 
@@ -203,4 +205,60 @@ export function importSavedRoutes(file: File, refreshCallback: () => void): void
         }
     };
     reader.readAsText(file);
+}
+
+export async function exportRoutesAsGPX(routeIds: string[], state: AppState): Promise<void> {
+    if (!state.config) {
+        alert('Configuration not loaded');
+        return;
+    }
+
+    const routes = getSavedRoutes();
+    const routesToExport = routes.filter(route => routeIds.includes(route.id));
+    
+    if (routesToExport.length === 0) {
+        alert('No routes selected for export.');
+        return;
+    }
+
+    const osrmUrl = state.config.osrmUrl || `http://${state.config.osrmAddress}/`;
+    const routeData: {name: string, routejson: any}[] = [];
+
+    try {
+        for (const route of routesToExport) {
+            console.log(`Fetching route for ${route.name} with ${route.points.length} points`);
+            if (route.points.length < 2) {
+                console.warn(`Route ${route.name} has less than 2 points, skipping`);
+                continue;
+            }
+            const result = await fetchOsrmRoute(route.points, osrmUrl, route.isRoundTrip);
+            if (result && result.route) {
+                console.log(`Successfully fetched route for ${route.name}`);
+                routeData.push({
+                    name: route.name,
+                    routejson: { routes: [result.route], waypoints: [] }
+                });
+            } else {
+                console.warn(`Failed to fetch route for ${route.name}:`, result);
+            }
+        }
+
+        if (routeData.length === 0) {
+            alert('Failed to generate routes for export.');
+            return;
+        }
+
+        const gpxContent = buildGPX(routeData, true);
+        const dataBlob = new Blob([gpxContent], {type: 'application/gpx+xml'});
+        
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(dataBlob);
+        link.download = `cycleplan_routes_${new Date().toISOString().split('T')[0]}.gpx`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    } catch (error) {
+        console.error('Error exporting GPX:', error);
+        alert('Error exporting routes: ' + (error as Error).message);
+    }
 }

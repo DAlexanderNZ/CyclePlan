@@ -24,6 +24,8 @@
   },
   "dependencies": {
     "@types/leaflet": "^1.9.20",
-    "leaflet": "^1.9.4"
+    "fast-xml-parser": "^5.2.5",
+    "leaflet": "^1.9.4",
+    "simplify-js": "^1.2.4"
   }
 }
