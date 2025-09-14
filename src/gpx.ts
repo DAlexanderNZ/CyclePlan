@@ -1,7 +1,7 @@
-// Converting to and from GPX to route waypoints 
-
-const { XMLParser, XMLBuilder, XMLValidator} = require("fast-xml-parser");
+import { XMLParser, XMLBuilder, XMLValidator} from "fast-xml-parser";
 import simplify from "simplify-js";
+import type { SavedRoute } from "./types";
+import L from "leaflet";
 
 /** Precision levels for trimming trackpoints measured in degrees. 
  * 0.00001 degrees is approximately 1.11 meters.
@@ -107,7 +107,7 @@ export function buildGPX(routeData: any | {name: string, routejson: any}[], wayp
 
 /** Trim track points to reduce number of points
  * @param coordinates Array of [lon, lat] coordinates
- * @param threshold Threshold value (degrees for bearing/douglas/simplify, area for visvalingam)
+ * @param threshold Use Precision enum measured in degrees. 0.00001 degrees is approximately 1.11 meters.
  * @returns Trimmed array of [lon, lat] coordinates
  */
 function trimTrkpt(coordinates: [number, number][], threshold: number): [number, number][] {
@@ -117,4 +117,132 @@ function trimTrkpt(coordinates: [number, number][], threshold: number): [number,
     const points = coordinates.map(([lon, lat]) => ({ x: lon, y: lat }));
     const simplified = simplify(points, threshold, true);
     return simplified.map(p => [p.x, p.y]);
+}
+
+/**
+ * Trim GPX points to reduce route waypoint count for web services like OSRM
+ * @param points Array of {lat,lng} points parsed from GPX
+ * @param threshold Use Precision enum measured in degrees. 0.00001 degrees is approximately 1.11 meters.
+ * @param maxPoints Needs to be under OSRM limit of 500 waypoints per request
+ * @returns Trimmed array of {lat,lng} points
+ */
+function trimGPXPoints(points: any[], threshold: Precision, maxPoints: number): any[] {
+    // Convert parsed {lat,lng} to [lon,lat] for trimming
+    const coords = (points as any[]).map(p => [p.lng, p.lat] as [number, number]);
+
+    if (coords.length > maxPoints && maxPoints > 0) {
+        // Iteratively increase threshold until we drop under maxPoints or reach a reasonable cap
+        let t = threshold;
+        let trimmed = trimTrkpt(coords, t);
+        const maxThreshold = 0.001; // ~111m
+        while (trimmed.length > maxPoints && t < maxThreshold) {
+            t = t * 2 || Precision.LOW; // increase threshold
+            trimmed = trimTrkpt(coords, t);
+        }
+        return trimmed.map(c => ({ lat: c[1], lng: c[0] }));
+    }
+
+    return points as any;
+}
+
+/**
+ * Generate a fallback route name with timestamp
+ * @returns Default route name with timestamp
+ */
+function defaultRouteName(): string {
+    const now = new Date();
+    const date = now.toISOString().replace(/T/, ' ').replace(/Z$/, '');
+    return `Imported Route ${date}`;
+}
+
+/**
+ * Parse GPX content from a string and extract waypoints/trk points into a SavedRoute
+ * @param gpxString GPX XML content
+ * @param routeName Optional name to use for SavedRoute
+ * @param threshold Threshold value for trimming trackpoints
+ * @param maxPoints Maximum number of points to retain; OSRM has a limit of 500 waypoints per request, we default to 250
+ * @returns SavedRoute object with points extracted as L.LatLng-like tuples
+ */
+export function parseGPXFromString(
+    gpxString: string,
+    routeName: string = defaultRouteName(),
+    threshold: Precision = Precision.VERYHIGH,
+    maxPoints: number = 250
+): SavedRoute {
+    const parser = new XMLParser({
+        ignoreAttributes: false,
+        attributeNamePrefix: '@',
+        ignoreDeclaration: true,
+        parseTagValue: false,
+    });
+
+    const parsed = parser.parse(gpxString);
+    // GPX root may be `gpx`
+    const gpx = parsed.gpx || parsed;
+
+    const points: any[] = [];
+
+    // Extract waypoints (wpt)
+    if (gpx.wpt) {
+        const wpts = Array.isArray(gpx.wpt) ? gpx.wpt : [gpx.wpt];
+        wpts.forEach((w: any) => {
+            const lat = parseFloat(w['@lat']);
+            const lon = parseFloat(w['@lon']);
+            if (!Number.isNaN(lat) && !Number.isNaN(lon)) {
+                points.push({ lat, lng: lon });
+            }
+        });
+    }
+
+    // Extract track points (trk > trkseg > trkpt)
+    if (gpx.trk) {
+        const trks = Array.isArray(gpx.trk) ? gpx.trk : [gpx.trk];
+        trks.forEach((trk: any) => {
+            if (!trk.trkseg) return;
+            const segs = Array.isArray(trk.trkseg) ? trk.trkseg : [trk.trkseg];
+            segs.forEach((seg: any) => {
+                if (!seg.trkpt) return;
+                const trkpts = Array.isArray(seg.trkpt) ? seg.trkpt : [seg.trkpt];
+                trkpts.forEach((p: any) => {
+                    const lat = parseFloat(p['@lat']);
+                    const lon = parseFloat(p['@lon']);
+                    if (!Number.isNaN(lat) && !Number.isNaN(lon)) {
+                        points.push({ lat, lng: lon });
+                    }
+                });
+            });
+        });
+    }
+
+    const saved: SavedRoute = {
+        id: `gpx-${Date.now()}-${Math.floor(Math.random()*10000)}`,
+        name: routeName,
+        description: "Imported from GPX",
+        points: trimGPXPoints(points, threshold, maxPoints).map(p => new L.LatLng(p.lat, p.lng)),
+        distance: 0,
+        created: new Date().toISOString(),
+    };
+
+    return saved;
+}
+
+/**
+ * Read a File object (from an upload input) and return its text content.
+ * Intended to run in the browser.
+ */
+export function readFileFromInput(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsText(file);
+    });
+}
+
+/**
+ * Convenience function to parse a File directly into a SavedRoute.
+ */
+export async function importGPX(file: File, routeName?: string, threshold: Precision = Precision.VERYHIGH, maxPoints: number = 250): Promise<SavedRoute> {
+    const text = await readFileFromInput(file);
+    return parseGPXFromString(text, routeName || file.name || "Imported Route", threshold, maxPoints);
 }

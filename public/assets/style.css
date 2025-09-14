@@ -82,7 +82,7 @@
     background: #0056b3;
 }
 
-#saveRoute, #manageSavedRoutes, #clearCache {
+#saveRoute, #manageSavedRoutes, #clearCache, #importRoute {
     background: #28a745;
     color: white;
     border: none;

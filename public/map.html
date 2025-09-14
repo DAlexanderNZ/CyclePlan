@@ -14,6 +14,7 @@
         <button id="resetRoute">Reset Route</button>
         <button id="saveRoute">Save Route</button>
         <button id="manageSavedRoutes">Manage Saved Routes</button>
+        <button id="importRoute">Import Route</button>
         <span id="pointCount">Points: 0</span>
         <span id="routeDistance">Route Distance: 0 km</span>
         <span id="settings">⚙️</span>
@@ -102,6 +103,28 @@
                     </tbody>
                 </table>
             </div>
+        </div>
+    </div>
+
+    <div id="importRouteModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Import Route</h2>
+            <p>Currently supported formats:</p>
+            <ul>
+                <li>GPX</li>
+                <li>JSON</li>
+            </ul>
+            <form id="importRouteForm">
+                <label for="gpxRouteName">Route Name (optional for GPX):</label>
+                <input type="text" id="gpxRouteName" name="gpxRouteName" placeholder="Optional">
+                <label for="gpxFileInput">Select File:</label>
+                <input type="file" id="gpxFileInput" name="gpxFileInput" accept=".gpx,.json" required>
+                <div class="modal-buttons">
+                    <button type="submit">Import</button>
+                    <button type="button" class="cancel">Cancel</button>
+                </div>
+            </form>
         </div>
     </div>
 

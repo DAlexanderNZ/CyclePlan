@@ -3,8 +3,10 @@
 import L from 'leaflet';
 import type { AppState } from './types';
 import { getSavedRoutes, renameSavedRoute, exportSavedRoutes, importSavedRoutes, saveCurrentRoute, updateExistingRoute, saveSavedRoutes, exportRoutesAsGPX } from './routeStorage';
+import { importGPX } from './gpx';
 import { refreshSavedRoutesTable, getSelectedRouteIds } from './waypoints';
 import { updateRoute } from './map';
+import { redrawMarkers, updateDistanceDisplay } from './waypoints';
 
 export function addInfoControl(map: L.Map): void {
     const info = new L.Control({position: 'topright'});
@@ -289,7 +291,7 @@ export function setupSavedRoutesModal(state: AppState): void {
     const deleteSelectedBtn = document.getElementById('deleteSelectedRoutes');
     const exportSelectedBtn = document.getElementById('exportSelectedRoutes');
     const importBtn = document.getElementById('importRoutesBtn');
-    const importInput = document.getElementById('importRoutes') as HTMLInputElement;
+    const importInput = document.getElementById('importRoutes') as HTMLInputElement | null;
 
     if (selectAllBtn) {
         selectAllBtn.addEventListener('click', () => {
@@ -338,11 +340,17 @@ export function setupSavedRoutesModal(state: AppState): void {
         });
     }
 
-    if (importBtn && importInput) {
+    if (importBtn) {
         importBtn.addEventListener('click', () => {
-            importInput.click();
+            // Open the GPX import modal so users can import GPX files
+            const gpxModal = document.getElementById('importRouteModal');
+            if (gpxModal) {
+                gpxModal.style.display = 'block';
+            }
         });
+    }
 
+    if (importInput) {
         importInput.addEventListener('change', (e) => {
             const file = (e.target as HTMLInputElement).files?.[0];
             if (file) {
@@ -365,6 +373,96 @@ export function closeSavedRoutesModal(): void {
     if (modal) {
         modal.style.display = 'none';
     }
+}
+
+export function setupImportRoutesModal(state: AppState): void {
+    const modal = document.getElementById('importRouteModal');
+    const importBtn = document.getElementById('importRoute');
+    const closeBtn = modal?.querySelector('.close');
+    const form = document.getElementById('importRouteForm') as HTMLFormElement | null;
+    const fileInput = document.getElementById('gpxFileInput') as HTMLInputElement | null;
+
+    if (importBtn) {
+        importBtn.addEventListener('click', () => {
+            modal!.style.display = 'block';
+        });
+    }
+
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            modal!.style.display = 'none';
+        });
+    }
+    
+    if (form && fileInput) {
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const file = fileInput.files?.[0];
+            if (!file) {
+                alert('Please select a file to import.');
+                return;
+            }
+
+            // Detect format from the file extension
+            const fileName = file.name || '';
+            const ext = fileName.split('.').pop()?.toLowerCase() || '';
+            const format = ext === 'json' ? 'json' : 'gpx';
+
+            try {
+                if (format === 'json') {
+                    importSavedRoutes(file, refreshSavedRoutesTable);
+                    // Reset and close modal
+                    modal!.style.display = 'none';
+                    form.reset();
+                    (document.getElementById('gpxRouteName') as HTMLInputElement).value = '';
+                    (document.getElementById('gpxFileInput') as HTMLInputElement).value = '';
+                    return;
+                }
+
+                // GPX import
+                const routeNameInput = document.getElementById('gpxRouteName') as HTMLInputElement;
+                const imported = await importGPX(file, routeNameInput?.value.trim() || undefined);
+
+                // Save imported route to storage
+                const routes = getSavedRoutes();
+                routes.push(imported);
+                saveSavedRoutes(routes);
+
+                // Load imported route into current state using saved route logic
+                state.routingPoints = imported.points;
+                state.currentRouteDistance = imported.distance || 0;
+                state.currentLoadedRouteId = imported.id;
+                state.isRouteModified = false;
+                state.isRoundTrip = imported.isRoundTrip || false;
+
+                // Render the route on the map
+                updateRoute();
+                redrawMarkers(state, state.map!, state.config ? (state.config.osrmUrl || `http://${state.config.osrmAddress}/`) : '', updateRoute);
+                updateDistanceDisplay(state);
+                
+                // Update saved routes table if modal is open             
+                if (document.getElementById('manageSavedRoutesModal')?.style.display === 'block') {
+                    refreshSavedRoutesTable();
+                }
+
+                // Reset and close modal
+                modal!.style.display = 'none';
+                form.reset();
+                (document.getElementById('gpxRouteName') as HTMLInputElement).value = '';
+                (document.getElementById('gpxFileInput') as HTMLInputElement).value = '';
+
+            } catch (err) {
+                console.error('Error importing file:', err);
+                alert('Failed to import file: ' + ((err as Error).message || err));
+            }
+        });
+    }
+    // Close modal when clicking outside
+    window.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal!.style.display = 'none';
+        }
+    });
 }
 
 export function setupSettingsModal(state: AppState): void {

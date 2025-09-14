@@ -21,6 +21,7 @@ import {
     setupRenameRouteModal, 
     setupSavedRoutesModal,
     setupRoundTripButton,
+    setupImportRoutesModal,
     setupSettingsModal,
     openRenameRouteModal,
     closeSavedRoutesModal
@@ -205,6 +206,7 @@ function setupEventHandlers(): void {
     setupSaveRouteModal(appState);
     setupRenameRouteModal(appState);
     setupSavedRoutesModal(appState);
+    setupImportRoutesModal(appState);
     setupSettingsModal(appState);
     
     // Custom event handlers for route management
