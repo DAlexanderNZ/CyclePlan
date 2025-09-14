@@ -40,9 +40,10 @@ export function buildGPX(routeData: any | {name: string, routejson: any}[], wayp
     const gpxData = {
         "?xml": { "@version": "1.0", "@encoding": "UTF-8" },
         "gpx": {
-            "@version": "1.1", "@creator": "CyclePlan https://github.com/DAlexanderNZ/CyclePlan",
-            "@xsi:schemaLocation": "http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/11.xsd",
+            "@creator": "CyclePlan https://github.com/DAlexanderNZ/CyclePlan", "@version": "1.1",
+            "@xsi:schemaLocation": "http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd",
             "@xmlns": "http://www.topografix.com/GPX/1/1",
+            "@xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
             "trk": routes.map(route => {
                 // Validate route structure
                 if (!route.routejson.routes || !route.routejson.routes[0] || !route.routejson.routes[0].geometry || !route.routejson.routes[0].geometry.coordinates) {
