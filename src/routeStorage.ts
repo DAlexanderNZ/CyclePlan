@@ -139,15 +139,17 @@ export function exportSavedRoutes(routeIds: string[]): void {
         return;
     }
 
-    const dataStr = JSON.stringify(routesToExport, null, 2);
-    const dataBlob = new Blob([dataStr], {type: 'application/json'});
-    
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(dataBlob);
-    link.download = `cycleplan_routes_${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    for (const route of routesToExport) {
+        const dataStr = JSON.stringify([route], null, 2);
+        const dataBlob = new Blob([dataStr], {type: 'application/json'});
+        
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(dataBlob);
+        link.download = `${route.name}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
 }
 
 export function importSavedRoutes(file: File, refreshCallback: () => void): void {
@@ -222,8 +224,6 @@ export async function exportRoutesAsGPX(routeIds: string[], state: AppState): Pr
     }
 
     const osrmUrl = state.config.osrmUrl || `http://${state.config.osrmAddress}/`;
-    const routeData: {name: string, routejson: any}[] = [];
-
     try {
         for (const route of routesToExport) {
             console.log(`Fetching route for ${route.name} with ${route.points.length} points`);
@@ -234,29 +234,19 @@ export async function exportRoutesAsGPX(routeIds: string[], state: AppState): Pr
             const result = await fetchOsrmRoute(route.points, osrmUrl, route.isRoundTrip);
             if (result && result.route) {
                 console.log(`Successfully fetched route for ${route.name}`);
-                routeData.push({
-                    name: route.name,
-                    routejson: { routes: [result.route], waypoints: [] }
-                });
+                const gpxContent = buildGPX([{name: route.name, routejson: { routes: [result.route], waypoints: [] }}], true);
+                const dataBlob = new Blob([gpxContent], {type: 'application/gpx+xml'});
+                
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(dataBlob);
+                link.download = `${route.name}.gpx`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
             } else {
                 console.warn(`Failed to fetch route for ${route.name}:`, result);
             }
         }
-
-        if (routeData.length === 0) {
-            alert('Failed to generate routes for export.');
-            return;
-        }
-
-        const gpxContent = buildGPX(routeData, true);
-        const dataBlob = new Blob([gpxContent], {type: 'application/gpx+xml'});
-        
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(dataBlob);
-        link.download = `cycleplan_routes_${new Date().toISOString().split('T')[0]}.gpx`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
     } catch (error) {
         console.error('Error exporting GPX:', error);
         alert('Error exporting routes: ' + (error as Error).message);
