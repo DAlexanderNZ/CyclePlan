@@ -7,10 +7,13 @@ A self hosted cycling route planning map web application.
 - Mapping
     - [x] Hosted map tiles (Thunderforest)
     - [x] Locally hosted map tiles
-- [x] Save and manage routes
+- [x] Save and manage your routes
 - Export Routes
-    - [ ] To your preferred file format
+    - [x] To .gpx
     - [ ] To your device
+- Import Routes
+    - [x] From .gpx
+    - [ ] From activity files (.fit)
 - [ ] Elevation Profiles
 - [ ] Route Surface Details
 
