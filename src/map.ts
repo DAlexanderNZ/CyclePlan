@@ -6,6 +6,7 @@ import type { AppState } from './types';
 import { loadConfig } from './config';
 import { setupTileCache } from './tileCache';
 import { fetchOsrmRoute, drawRoute } from './routing';
+import { updateHoverDistanceDisplay } from './ui';
 import { 
     addRoutingPoint, 
     insertWaypointAtBestPosition, 
@@ -131,6 +132,8 @@ export async function updateRoute(): Promise<void> {
         appState.routeLayer.clearLayers();
         appState.currentRouteDistance = 0;
         updateDistanceDisplay(appState);
+        const hoverEl = document.getElementById('hoverDistance');
+        if (hoverEl) hoverEl.style.display = 'none';
         return;
     }
     
@@ -145,7 +148,8 @@ export async function updateRoute(): Promise<void> {
                 appState.routeLayer, 
                 appState.map, 
                 // forward polyline from routing.drawRoute to our insert function
-                (dropPoint: L.LatLng, anchorPoint: L.LatLng, polyline?: L.Polyline | null) => insertWaypointAtBestPosition(dropPoint, appState, appState.map!, osrmUrl, updateRoute, polyline, anchorPoint)
+                (dropPoint: L.LatLng, anchorPoint: L.LatLng, polyline?: L.Polyline | null) => insertWaypointAtBestPosition(dropPoint, appState, appState.map!, osrmUrl, updateRoute, polyline, anchorPoint),
+                updateHoverDistanceDisplay
             );
             
             // Extract and store the route distance
@@ -156,6 +160,8 @@ export async function updateRoute(): Promise<void> {
             appState.routeLayer.clearLayers();
             appState.currentRouteDistance = 0;
             updateDistanceDisplay(appState);
+            const hoverEl = document.getElementById('hoverDistance');
+            if (hoverEl) hoverEl.style.display = 'none';
         }
     } catch (err) {
         console.error('Routing failed:', err);
@@ -163,6 +169,8 @@ export async function updateRoute(): Promise<void> {
         console.error('Stack trace:', (err as Error).stack);
         appState.currentRouteDistance = 0;
         updateDistanceDisplay(appState);
+        const hoverEl = document.getElementById('hoverDistance');
+        if (hoverEl) hoverEl.style.display = 'none';
     }
 }
 

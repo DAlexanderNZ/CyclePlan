@@ -99,7 +99,7 @@ export async function fetchOsrmRoute(waypoints: L.LatLng[], osrmUrl: string, isR
 }
 
 // Draw route as red polyline on the routePane
-export function drawRoute(geojson: any, routeLayer: L.LayerGroup, map: L.Map, insertWaypointAtBestPosition: (dropPoint: L.LatLng, anchorPoint: L.LatLng, polyline?: L.Polyline | null) => Promise<void>): void {
+export function drawRoute(geojson: any, routeLayer: L.LayerGroup, map: L.Map, insertWaypointAtBestPosition: (dropPoint: L.LatLng, anchorPoint: L.LatLng, polyline?: L.Polyline | null) => Promise<void>, onHoverDistance?: (meters: number | null) => void): void {
     // Clear previous route
     routeLayer.clearLayers();
     if (geojson) {
@@ -179,6 +179,105 @@ export function drawRoute(geojson: any, routeLayer: L.LayerGroup, map: L.Map, in
                 }
             });
         }, 50);
+
+        // Attach hover handlers to show distance from start at mouse position
+        routeGeo.eachLayer(function(layer) {
+            if (layer instanceof L.Polyline) {
+                const poly = layer as L.Polyline;
+                // Persistent marker for last-hovered position
+                let hoverMarker: L.Marker | null = null;
+                // Marker while moving
+                let tempHoverMarker: L.Marker | null = null;
+
+                async function onMouseMove(e: L.LeafletMouseEvent) {
+                    try {
+                        const latlngsRaw = (poly.getLatLngs() as any) || [];
+                        const latlngs: L.LatLng[] = flattenLatLngs(latlngsRaw);
+                        if (latlngs.length < 2) return;
+                        const projMeters = distanceAlongPolyline(latlngs, e.latlng, map);
+                        // create or move temporary hover marker
+                        // remove existing persistent marker while moving
+                        if (hoverMarker) {
+                            routeLayer.removeLayer(hoverMarker);
+                            hoverMarker = null;
+                        }
+
+                        if (!tempHoverMarker) {
+                            tempHoverMarker = L.marker(e.latlng, {
+                                icon: L.divIcon({
+                                    className: 'hover-marker-temp',
+                                    html: '<div style="background: #007cba; width: 10px; height: 10px; border-radius: 50%; border: 2px solid white;"></div>',
+                                    iconSize: [10,10],
+                                    iconAnchor: [5,5]
+                                }),
+                                pane: 'markerPane',
+                                interactive: false
+                            }).addTo(routeLayer);
+                        } else {
+                            tempHoverMarker.setLatLng(e.latlng);
+                        }
+
+                        if (onHoverDistance) onHoverDistance(projMeters);
+                        else {
+                            const km = (projMeters / 1000);
+                            const el = document.getElementById('hoverDistance');
+                            if (el) {
+                                el.textContent = `Distance from start: ${km.toFixed(2)} km`;
+                                el.style.display = 'inline';
+                            }
+                        }
+                    } catch (err) {
+                        console.error('Error computing hover distance:', err);
+                    }
+                }
+
+                poly.on('mousemove', onMouseMove);
+                poly.on('mouseover', function() {
+                    // Ensure hover display is visible when entering the polyline
+                    if (onHoverDistance) return; // callback consumer handles visibility
+                    const el = document.getElementById('hoverDistance');
+                    if (el) el.style.display = 'inline';
+                });
+
+                poly.on('mouseout', function(e: L.LeafletMouseEvent) {
+                    // When mouse leaves the polyline, remove temporary marker and leave a persistent hoverMarker
+                    if (tempHoverMarker) {
+                        const lat = tempHoverMarker.getLatLng();
+                        // remove temp marker
+                        routeLayer.removeLayer(tempHoverMarker);
+                        tempHoverMarker = null;
+
+                        // create or move persistent marker to last position
+                        if (!hoverMarker) {
+                            hoverMarker = L.marker(lat, {
+                                icon: L.divIcon({
+                                    className: 'hover-marker',
+                                    html: '<div style="background: #007cba; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white;"></div>',
+                                    iconSize: [12,12],
+                                    iconAnchor: [6,6]
+                                }),
+                                pane: 'markerPane'
+                            }).addTo(routeLayer);
+
+                            // clicking the persistent marker removes it and clears hover display
+                            hoverMarker.on('click', () => {
+                                routeLayer.removeLayer(hoverMarker!);
+                                hoverMarker = null;
+                                if (onHoverDistance) onHoverDistance(null);
+                            });
+                        } else {
+                            hoverMarker.setLatLng(lat);
+                        }
+                    }
+                    // Keep hover distance visible for the persistent marker
+                    if (onHoverDistance) {
+                        // do nothing: last value remains shown
+                    } else {
+                        // already handled by hideHover
+                    }
+                });
+            }
+        });
     }
 }
 
@@ -208,4 +307,86 @@ export function getDistanceToLineSegment(point: L.LatLng, lineStart: L.LatLng, l
     const dx = point.lat - xx;
     const dy = point.lng - yy;
     return Math.sqrt(dx * dx + dy * dy);
+}
+
+// Flatten nested latlng arrays (GeoJSON MultiLineString may produce nested arrays)
+export function flattenLatLngs(raw: any): L.LatLng[] {
+    const out: L.LatLng[] = [];
+    if (!raw) return out;
+    if (Array.isArray(raw)) {
+        raw.forEach((item) => {
+            if (item instanceof L.LatLng) out.push(item);
+            else if (Array.isArray(item) && item.length && item[0] instanceof L.LatLng) {
+                (item as L.LatLng[]).forEach(x => out.push(x));
+            } else if (Array.isArray(item)) {
+                // nested deeper
+                (flattenLatLngs(item) as L.LatLng[]).forEach(x => out.push(x));
+            }
+        });
+    }
+    return out;
+}
+
+// Compute distance along the polyline from the start to the projection of `point` onto the polyline
+export function distanceAlongPolyline(latlngs: L.LatLng[], point: L.LatLng, map: L.Map): number {
+    // Convert to meters using map.distance
+    let total = 0;
+    let nearest = {dist: Infinity, index: -1, t: 0, projLatLng: null as L.LatLng | null};
+
+    for (let i = 0; i < latlngs.length - 1; i++) {
+        const a = latlngs[i];
+        const b = latlngs[i + 1];
+        if (!a || !b) continue;
+        // Project point onto segment in lat/lng space using simple linear projection
+        const proj = projectPointToSegment(point, a, b);
+        const d = map.distance(proj.latlng, point);
+        if (d < nearest.dist) {
+            nearest = {dist: d, index: i, t: proj.t, projLatLng: proj.latlng};
+        }
+    }
+
+    if (nearest.index === -1 || !nearest.projLatLng) return 0;
+
+    // Sum distances up to the segment
+    for (let i = 0; i < nearest.index; i++) {
+        const a = latlngs[i];
+        const b = latlngs[i + 1];
+        if (!a || !b) continue;
+        total += map.distance(a, b);
+    }
+
+    // Add partial distance on the segment
+    const segStart = latlngs[nearest.index];
+    const segProj = nearest.projLatLng;
+    if (segStart && segProj) {
+        total += map.distance(segStart, segProj);
+    }
+
+    return total;
+}
+
+// Project a point to the closest point on the segment (a-b) and return the projected latlng and param t
+export function projectPointToSegment(p: L.LatLng, a: L.LatLng, b: L.LatLng): {latlng: L.LatLng, t: number} {
+    // Work in simple Cartesian lat/lng coordinates — fine for short distances
+    const A = p.lat - a.lat;
+    const B = p.lng - a.lng;
+    const C = b.lat - a.lat;
+    const D = b.lng - a.lng;
+
+    const dot = A * C + B * D;
+    const lenSq = C * C + D * D;
+    const param = lenSq !== 0 ? dot / lenSq : 0;
+
+    let xx, yy;
+    let t = param;
+    if (param < 0) {
+        xx = a.lat; yy = a.lng; t = 0;
+    } else if (param > 1) {
+        xx = b.lat; yy = b.lng; t = 1;
+    } else {
+        xx = a.lat + param * C;
+        yy = a.lng + param * D;
+    }
+
+    return { latlng: L.latLng(xx, yy), t };
 }

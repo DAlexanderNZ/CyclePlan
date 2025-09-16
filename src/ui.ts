@@ -28,6 +28,18 @@ export function addInfoControl(map: L.Map): void {
     info.addTo(map);
 }
 
+export function updateHoverDistanceDisplay(meters: number | null): void {
+    const el = document.getElementById('hoverDistance');
+    if (!el) return;
+    if (meters === null) {
+        el.style.display = 'none';
+        return;
+    }
+    const km = meters / 1000;
+    el.textContent = `${km.toFixed(2)} km`;
+    el.style.display = 'inline';
+}
+
 export function setupRoundTripButton(state: AppState): void {
     const roundTripBtn = document.getElementById('roundTrip');
     if (roundTripBtn) {

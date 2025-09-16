@@ -3,6 +3,7 @@
 import L from 'leaflet';
 import type { AppState } from './types';
 import { getSavedRoutes, deleteSavedRoute, renameSavedRoute, exportSavedRoutes, importSavedRoutes, saveCurrentRoute } from './routeStorage';
+import { updateHoverDistanceDisplay } from './ui';
 
 export function createNumberedMarker(latlng: L.LatLng, number: number, map: L.Map, state: AppState, updateRoute: () => Promise<void>, osrmUrl: string): L.Marker {
     const marker = L.marker(latlng, {
@@ -82,12 +83,12 @@ export function updateDistanceDisplay(state: AppState): void {
     if (distanceElement) {
         if (state.currentRouteDistance > 0 && state.currentRouteDistance < 1000) {
             const meters = state.currentRouteDistance;
-            distanceElement.textContent = `Route Distance: ${meters} m`;
+            distanceElement.textContent = `Distance: ${meters} m`;
         } else if (state.currentRouteDistance >= 1000) {
             const km = (state.currentRouteDistance / 1000).toFixed(2);
-            distanceElement.textContent = `Route Distance: ${km} km`;
+            distanceElement.textContent = `Distance: ${km} km`;
         } else {
-            distanceElement.textContent = 'Route Distance: 0 km';
+            distanceElement.textContent = 'Distance: 0 km';
         }
     }
 }
@@ -374,6 +375,12 @@ export function resetRoute(state: AppState, map: L.Map): void {
     state.isRouteModified = false;
     updatePointCount(state);
     updateDistanceDisplay(state);
+    // Clear hover distance display and any persistent hover markers
+    try {
+        updateHoverDistanceDisplay(null);
+    } catch (err) {
+        // ignore if UI helper not available at runtime
+    }
 }
 
 export function fitMapToRoute(map: L.Map, routingPoints: L.LatLng[]): void {

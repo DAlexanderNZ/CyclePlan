@@ -55,6 +55,16 @@
     border: 1px solid rgba(40, 167, 69, 0.3);
 }
 
+#hoverDistance {
+    font-weight: bold;
+    color: #17a2b8;
+    background: rgba(23, 162, 184, 0.1);
+    padding: 6px 8px;
+    border-radius: 4px;
+    border: 1px solid rgba(23, 162, 184, 0.3);
+    display: none; /* Hidden by default */
+}
+
 .numbered-marker {
     background: transparent;
     border: none;
