@@ -30,10 +30,10 @@ export function generateRouteId(): string {
     return 'route_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 }
 
-export function saveCurrentRoute(routingPoints: L.LatLng[], currentRouteDistance: number, name: string, description: string, isRoundTrip: boolean = false): void {
+export function saveCurrentRoute(routingPoints: L.LatLng[], currentRouteDistance: number, name: string, description: string, isRoundTrip: boolean = false): string | null {
     if (routingPoints.length === 0) {
         alert('No route to save. Please add some routing points first.');
-        return;
+        return null;
     }
 
     const routes = getSavedRoutes();
@@ -41,7 +41,7 @@ export function saveCurrentRoute(routingPoints: L.LatLng[], currentRouteDistance
     // Check if name already exists
     if (routes.some(route => route.name === name)) {
         if (!confirm(`A route named "${name}" already exists. Do you want to overwrite it?`)) {
-            return;
+            return null;
         }
         // Remove existing route with same name
         const updatedRoutes = routes.filter(route => route.name !== name);
@@ -63,6 +63,7 @@ export function saveCurrentRoute(routingPoints: L.LatLng[], currentRouteDistance
     saveSavedRoutes(updatedRoutes);
     
     console.log('Route saved:', newRoute);
+    return newRoute.id;
 }
 
 export function deleteSavedRoute(routeId: string, refreshCallback: () => void): void {

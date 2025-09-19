@@ -194,10 +194,14 @@ export function setupSaveRouteModal(state: AppState): void {
                 state.isRouteModified = false;
             } else {
                 // Save as new route
-                saveCurrentRoute(state.routingPoints, state.currentRouteDistance, name.trim(), description.trim(), state.isRoundTrip);
-                // Clear the loaded route ID and modification flag since we saved as new
-                state.currentLoadedRouteId = null;
+                const newId = saveCurrentRoute(state.routingPoints, state.currentRouteDistance, name.trim(), description.trim(), state.isRoundTrip);
+                // If save succeeded and returned an id, set it as the currently loaded route
+                if (newId) {
+                    state.currentLoadedRouteId = newId;
+                }
+                // Reset modification flag since route is now saved
                 state.isRouteModified = false;
+                // TODO: Show success message instead using alert
                 alert('Route saved successfully!');
             }
             
