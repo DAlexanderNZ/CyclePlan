@@ -3,6 +3,11 @@
 import L from 'leaflet';
 import type { AppState } from './types';
 import { getSavedRoutes, deleteSavedRoute, renameSavedRoute, exportSavedRoutes, importSavedRoutes, saveCurrentRoute } from './routeStorage';
+
+// Sort state for the saved routes table
+let currentSortColumn: string = '';
+let currentSortDirection: 'asc' | 'desc' = 'asc';
+let sortEventListenersAttached: boolean = false;
 import { updateHoverDistanceDisplay } from './ui';
 
 export function createNumberedMarker(latlng: L.LatLng, number: number, map: L.Map, state: AppState, updateRoute: () => Promise<void>, osrmUrl: string): L.Marker {
@@ -438,12 +443,86 @@ export function loadSavedRoute(routeId: string, state: AppState, map: L.Map, osr
     fitMapToRoute(map, state.routingPoints);
 }
 
+function sortRoutes(routes: any[], column: string, direction: 'asc' | 'desc') {
+    return routes.sort((a, b) => {
+        let valueA: any, valueB: any;
+        
+        switch (column) {
+            case 'name':
+                valueA = (a.name || '').toLowerCase();
+                valueB = (b.name || '').toLowerCase();
+                break;
+            case 'description':
+                valueA = (a.description || '').toLowerCase();
+                valueB = (b.description || '').toLowerCase();
+                break;
+            case 'points':
+                valueA = a.points ? a.points.length : 0;
+                valueB = b.points ? b.points.length : 0;
+                break;
+            case 'distance':
+                valueA = a.distance || 0;
+                valueB = b.distance || 0;
+                break;
+            case 'created':
+                valueA = a.created ? new Date(a.created).getTime() : 0;
+                valueB = b.created ? new Date(b.created).getTime() : 0;
+                break;
+            default:
+                return 0;
+        }
+        
+        if (valueA < valueB) {
+            return direction === 'asc' ? -1 : 1;
+        }
+        if (valueA > valueB) {
+            return direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+    });
+}
+
+function handleHeaderClick(column: string): void {
+    if (currentSortColumn === column) {
+        // Toggle direction if same column
+        currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        // New column, start with ascending
+        currentSortColumn = column;
+        currentSortDirection = 'asc';
+    }
+    
+    // Update visual indicators and refresh table
+    updateSortIndicators();
+    refreshSavedRoutesTable();
+}
+
+function updateSortIndicators(): void {
+    // Clear all indicators
+    document.querySelectorAll('.sort-indicator').forEach(indicator => {
+        indicator.textContent = '';
+    });
+    
+    // Set indicator for current sort column
+    if (currentSortColumn) {
+        const header = document.querySelector(`[data-sort="${currentSortColumn}"] .sort-indicator`);
+        if (header) {
+            header.textContent = currentSortDirection === 'asc' ? ' ↑' : ' ↓';
+        }
+    }
+}
+
 // UI Management Functions
 export function refreshSavedRoutesTable(): void {
     const tableBody = document.getElementById('savedRoutesTableBody');
     if (!tableBody) return;
 
-    const routes = getSavedRoutes();
+    let routes = getSavedRoutes();
+    
+    // Sort routes if a sort column is selected
+    if (currentSortColumn) {
+        routes = sortRoutes([...routes], currentSortColumn, currentSortDirection);
+    }
     tableBody.innerHTML = '';
 
     routes.forEach(route => {
@@ -459,7 +538,7 @@ export function refreshSavedRoutesTable(): void {
         const roundTripLabel = (route as any).isRoundTrip ? ' (Round Trip)' : '';
         row.innerHTML = `
             <td><input type="checkbox" class="route-checkbox" data-route-id="${route.id}"></td>
-            <td class="route-name" data-route-id="${route.id}">${route.name}${roundTripLabel}</td>
+            <td class="route-name" data-route-id="${route.id}" title="${route.name}${roundTripLabel}">${route.name}${roundTripLabel}</td>
             <td>${route.description || ''}</td>
             <td>${pointCount}</td>
             <td>${distanceDisplay}</td>
@@ -476,6 +555,9 @@ export function refreshSavedRoutesTable(): void {
 
     // Add event listeners for table actions
     setupSavedRoutesTableEventListeners();
+    
+    // Update sort indicators
+    updateSortIndicators();
 }
 
 function setupSavedRoutesTableEventListeners(): void {
@@ -527,6 +609,24 @@ function setupSavedRoutesTableEventListeners(): void {
             });
             updateSelectedRoutesUI();
         });
+    }
+
+    // Sortable header clicks
+    if (!sortEventListenersAttached) {
+        const table = document.getElementById('savedRoutesTable');
+        if (table) {
+            table.addEventListener('click', (e) => {
+                const target = e.target as HTMLElement;
+                // Check if clicked element or its parent is a sortable header
+                const sortableHeader = target.closest('.sortable') as HTMLElement;
+                if (sortableHeader && sortableHeader.dataset.sort) {
+                    e.preventDefault();
+                    const column = sortableHeader.dataset.sort;
+                    handleHeaderClick(column);
+                }
+            });
+        }
+        sortEventListenersAttached = true;
     }
 }
 
