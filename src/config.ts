@@ -4,7 +4,12 @@ export function serviceUrl(address: string, defaultProtocol = window.location.pr
     const trimmedAddress = address.trim();
 
     if (/^https?:\/\//i.test(trimmedAddress)) {
-        return trimmedAddress.endsWith('/') ? trimmedAddress : `${trimmedAddress}/`;
+        const url = new URL(trimmedAddress);
+        if (defaultProtocol === 'https:' && url.protocol === 'http:' &&
+            !['localhost', '127.0.0.1', '::1'].includes(url.hostname)) {
+            url.protocol = 'https:';
+        }
+        return url.toString().endsWith('/') ? url.toString() : `${url.toString()}/`;
     }
 
     const protocol = defaultProtocol === 'https:' ? 'https:' : 'http:';
@@ -40,9 +45,13 @@ export async function loadConfig(): Promise<Config> {
         // Set default values for optional settings and construct URLs from addresses
         if (!config.osrmUrl) {
             config.osrmUrl = serviceUrl(config.osrmAddress);
+        } else {
+            config.osrmUrl = serviceUrl(config.osrmUrl);
         }
         if (!config.mapTileUrl) {
             config.mapTileUrl = 'https://tile.thunderforest.com/cycle/';
+        } else {
+            config.mapTileUrl = serviceUrl(config.mapTileUrl);
         }
         if (!config.mapTileApiKey) {
             config.mapTileApiKey = config.thunderApiKey;
@@ -58,7 +67,10 @@ export async function loadConfig(): Promise<Config> {
                 config.localTileUrl = 'http://localhost:8080';
                 config.localTileAddress = 'localhost:8080';
             }
-        } else if (!config.localTileAddress) {
+        } else {
+            config.localTileUrl = serviceUrl(config.localTileUrl);
+        }
+        if (!config.localTileAddress) {
             // Extract address from URL for backward compatibility
             try {
                 const url = new URL(config.localTileUrl);
@@ -78,7 +90,10 @@ export async function loadConfig(): Promise<Config> {
                 config.openTopoDataUrl = 'http://localhost:5010';
                 config.openTopoDataAddress = 'localhost:5010';
             }
-        } else if (!config.openTopoDataAddress) {
+        } else {
+            config.openTopoDataUrl = serviceUrl(config.openTopoDataUrl);
+        }
+        if (!config.openTopoDataAddress) {
             // Extract address from URL for backward compatibility
             try {
                 const url = new URL(config.openTopoDataUrl);
