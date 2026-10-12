@@ -20,11 +20,11 @@
     "@types/bun": "latest"
   },
   "peerDependencies": {
-    "typescript": "^5"
+    "typescript": "^5.9.2"
   },
   "dependencies": {
-    "@types/leaflet": "^1.9.20",
-    "fast-xml-parser": "^5.2.5",
+    "@types/leaflet": "^1.9.22",
+    "fast-xml-parser": "^5.11.2",
     "leaflet": "^1.9.4",
     "simplify-js": "^1.2.4"
   }
