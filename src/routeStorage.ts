@@ -224,7 +224,7 @@ export async function exportRoutesAsGPX(routeIds: string[], state: AppState): Pr
         return;
     }
 
-    const osrmUrl = state.config.osrmUrl || `http://${state.config.osrmAddress}/`;
+    const osrmUrl = state.config.osrmUrl || `${window.location.protocol}//${state.config.osrmAddress}/`;
     try {
         for (const route of routesToExport) {
             console.log(`Fetching route for ${route.name} with ${route.points.length} points`);

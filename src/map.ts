@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     try {
         const config = await loadConfig();
         appState.config = config;
-        osrmUrl = config.osrmUrl || `http://${config.osrmAddress}/`;
+        osrmUrl = config.osrmUrl || `${window.location.protocol}//${config.osrmAddress}/`;
         
         initializeMap();
     } catch (error) {

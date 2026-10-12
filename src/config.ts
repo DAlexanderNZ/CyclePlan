@@ -1,5 +1,17 @@
 import type { Config } from './types';
 
+export function serviceUrl(address: string, defaultProtocol = window.location.protocol): string {
+    const trimmedAddress = address.trim();
+
+    if (/^https?:\/\//i.test(trimmedAddress)) {
+        return trimmedAddress.endsWith('/') ? trimmedAddress : `${trimmedAddress}/`;
+    }
+
+    const protocol = defaultProtocol === 'https:' ? 'https:' : 'http:';
+    const addressWithoutProtocol = trimmedAddress.replace(/^\/+/, '');
+    return `${protocol}//${addressWithoutProtocol}/`;
+}
+
 export async function loadConfig(): Promise<Config> {
     try {
         const response = await fetch('config.json');
@@ -27,7 +39,7 @@ export async function loadConfig(): Promise<Config> {
         
         // Set default values for optional settings and construct URLs from addresses
         if (!config.osrmUrl) {
-            config.osrmUrl = `http://${config.osrmAddress}/`;
+            config.osrmUrl = serviceUrl(config.osrmAddress);
         }
         if (!config.mapTileUrl) {
             config.mapTileUrl = 'https://tile.thunderforest.com/cycle/';
@@ -41,7 +53,7 @@ export async function loadConfig(): Promise<Config> {
         if (!config.localTileUrl) {
             // Construct URL from address if provided, otherwise use default
             if (config.localTileAddress) {
-                config.localTileUrl = `http://${config.localTileAddress}`;
+                config.localTileUrl = serviceUrl(config.localTileAddress);
             } else {
                 config.localTileUrl = 'http://localhost:8080';
                 config.localTileAddress = 'localhost:8080';
@@ -61,7 +73,7 @@ export async function loadConfig(): Promise<Config> {
         if (!config.openTopoDataUrl) {
             // Construct URL from address if provided, otherwise use default
             if (config.openTopoDataAddress) {
-                config.openTopoDataUrl = `http://${config.openTopoDataAddress}`;
+                config.openTopoDataUrl = serviceUrl(config.openTopoDataAddress);
             } else {
                 config.openTopoDataUrl = 'http://localhost:5010';
                 config.openTopoDataAddress = 'localhost:5010';

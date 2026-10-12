@@ -453,7 +453,7 @@ export function setupImportRoutesModal(state: AppState): void {
 
                 // Render the route on the map
                 updateRoute();
-                redrawMarkers(state, state.map!, state.config ? (state.config.osrmUrl || `http://${state.config.osrmAddress}/`) : '', updateRoute);
+                redrawMarkers(state, state.map!, state.config ? (state.config.osrmUrl || `${window.location.protocol}//${state.config.osrmAddress}/`) : '', updateRoute);
                 updateDistanceDisplay(state);
                 
                 // Update saved routes table if modal is open             
@@ -518,7 +518,7 @@ export function setupSettingsModal(state: AppState): void {
                 const openTopoDataUrlInput = document.getElementById('OpenTopoDataUrl') as HTMLInputElement;
                 const openTopoDataDataSetSelect = document.getElementById('OpenTopoDataDataSet') as HTMLSelectElement;
 
-                if (osrmUrlInput) osrmUrlInput.value = state.config.osrmUrl || `http://${state.config.osrmAddress}/`;
+                if (osrmUrlInput) osrmUrlInput.value = state.config.osrmUrl || `${window.location.protocol}//${state.config.osrmAddress}/`;
                 if (useLocalTilesInput) useLocalTilesInput.checked = state.config.useLocalTiles || false;
                 if (localTileUrlInput) localTileUrlInput.value = state.config.localTileUrl || 'http://localhost:8080';
                 if (mapTileUrlInput) mapTileUrlInput.value = state.config.mapTileUrl || 'https://tile.thunderforest.com/cycle/';
