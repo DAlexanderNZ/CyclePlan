@@ -102,6 +102,17 @@ bun install
    bun run server
    ```
 
+### Running as a service
+If you want to deploy CyclePlan you can follow these steps on systemd linux distros once you have configured your routing and tile services.
+1. Edit [cycleplan.service.example](cycleplan.service.example) and update the paths
+2. Copy it to `/etc/systemd/system/cycleplan.service
+3. Enable and start the service:
+```
+sudo systemctl daemon-reload
+sudo systemctl enable cycleplan
+sudo systemctl start cycleplan
+```
+4. Verfiy it started corrected `sudo journalctl -u cycleplan -f`
 ## Troubleshooting
 
 ### Service Management

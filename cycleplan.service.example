@@ -1,0 +1,14 @@
+[Unit]
+Description=CyclePlan Bun server
+After=network.target
+
+[Service]
+Type=simple
+User=daniel
+WorkingDirectory=/repo/path/cycleplan
+ExecStart=/home/user/.bun/bin/bun index.ts
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
