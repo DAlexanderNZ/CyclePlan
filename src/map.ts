@@ -39,6 +39,7 @@ const appState: AppState = {
     currentLoadedRouteId: null,
     isRoundTrip: false,
     isRouteModified: false,
+    isDraggingWaypoint: false,
     config: null
 };
 
@@ -149,6 +150,15 @@ export async function updateRoute(): Promise<void> {
                 appState.map, 
                 // forward polyline from routing.drawRoute to our insert function
                 (dropPoint: L.LatLng, anchorPoint: L.LatLng, polyline?: L.Polyline | null) => insertWaypointAtBestPosition(dropPoint, appState, appState.map!, osrmUrl, updateRoute, polyline, anchorPoint),
+                (isDragging: boolean) => {
+                    if (isDragging) {
+                        appState.isDraggingWaypoint = true;
+                    } else {
+                        setTimeout(() => {
+                            appState.isDraggingWaypoint = false;
+                        }, 0);
+                    }
+                },
                 updateHoverDistanceDisplay
             );
             
@@ -179,6 +189,10 @@ function setupEventHandlers(): void {
     
     // Left click to add routing point
     appState.map.on('click', function(e) {
+        if (appState.isDraggingWaypoint) {
+            appState.isDraggingWaypoint = false;
+            return;
+        }
         addRoutingPoint(e.latlng, appState, appState.map!, osrmUrl, updateRoute);
     });
 

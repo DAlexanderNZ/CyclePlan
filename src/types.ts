@@ -35,5 +35,6 @@ export interface AppState {
     currentLoadedRouteId: string | null;
     isRoundTrip: boolean;
     isRouteModified: boolean;
+    isDraggingWaypoint: boolean;
     config: Config | null;
 }
